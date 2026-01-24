@@ -1,20 +1,79 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Spade } from "lucide-react";
+import { Eye, EyeOff, Spade, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  
   const navigate = useNavigate();
+  const location = useLocation();
+  const { signIn, signUp, user } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Redirect if already logged in
+  if (user) {
+    const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/dashboard";
+    navigate(from, { replace: true });
+    return null;
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/dashboard");
+    
+    if (!email || !password) {
+      toast.error("Preencha todos os campos");
+      return;
+    }
+
+    if (!isLogin) {
+      if (password !== confirmPassword) {
+        toast.error("As senhas não coincidem");
+        return;
+      }
+      if (password.length < 6) {
+        toast.error("A senha deve ter pelo menos 6 caracteres");
+        return;
+      }
+    }
+
+    setIsLoading(true);
+
+    try {
+      if (isLogin) {
+        const { error } = await signIn(email, password);
+        if (error) {
+          toast.error(error.message === "Invalid login credentials" 
+            ? "Email ou senha incorretos" 
+            : error.message);
+        } else {
+          toast.success("Login realizado com sucesso!");
+          const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/dashboard";
+          navigate(from, { replace: true });
+        }
+      } else {
+        const { error } = await signUp(email, password, fullName);
+        if (error) {
+          toast.error(error.message);
+        } else {
+          toast.success("Conta criada com sucesso!");
+          navigate("/dashboard", { replace: true });
+        }
+      }
+    } catch (err) {
+      toast.error("Ocorreu um erro. Tente novamente.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -49,6 +108,21 @@ export default function Auth() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {!isLogin && (
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Nome Completo</Label>
+                  <Input
+                    id="fullName"
+                    type="text"
+                    placeholder="Seu nome"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="h-11 bg-input border-border"
+                    disabled={isLoading}
+                  />
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="email">E-mail</Label>
                 <Input
@@ -58,6 +132,7 @@ export default function Auth() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="h-11 bg-input border-border"
+                  disabled={isLoading}
                 />
               </div>
 
@@ -71,6 +146,7 @@ export default function Auth() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="h-11 bg-input border-border pr-10"
+                    disabled={isLoading}
                   />
                   <button
                     type="button"
@@ -89,13 +165,23 @@ export default function Auth() {
                     id="confirmPassword"
                     type="password"
                     placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
                     className="h-11 bg-input border-border"
+                    disabled={isLoading}
                   />
                 </div>
               )}
 
-              <Button type="submit" variant="gold" size="lg" className="w-full">
-                {isLogin ? "Entrar" : "Criar Conta"}
+              <Button type="submit" variant="gold" size="lg" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {isLogin ? "Entrando..." : "Criando conta..."}
+                  </>
+                ) : (
+                  isLogin ? "Entrar" : "Criar Conta"
+                )}
               </Button>
             </form>
 
@@ -112,8 +198,15 @@ export default function Auth() {
               {isLogin ? "Não tem uma conta? " : "Já tem uma conta? "}
               <button
                 type="button"
-                onClick={() => setIsLogin(!isLogin)}
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setEmail("");
+                  setPassword("");
+                  setConfirmPassword("");
+                  setFullName("");
+                }}
                 className="text-primary hover:underline font-medium"
+                disabled={isLoading}
               >
                 {isLogin ? "Cadastre-se" : "Entrar"}
               </button>
