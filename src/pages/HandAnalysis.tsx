@@ -92,6 +92,13 @@ const positionCoords9Max = {
   CO: { top: "80%", left: "42%" },
 };
 
+// Get available positions for each table size
+const getPositionsForTableSize = (size: 6 | 8 | 9): string[] => {
+  if (size === 6) return ["BTN", "SB", "BB", "UTG", "MP", "CO"];
+  if (size === 8) return ["BTN", "SB", "BB", "UTG", "UTG+1", "MP", "HJ", "CO"];
+  return ["BTN", "SB", "BB", "UTG", "UTG+1", "MP", "MP+1", "HJ", "CO"];
+};
+
 export default function HandAnalysis() {
   const [handHistory, setHandHistory] = useState("");
   const [isPlaying, setIsPlaying] = useState(false);
@@ -100,10 +107,21 @@ export default function HandAnalysis() {
   const [parsedHand, setParsedHand] = useState<ParsedHand | null>(() => generateSampleHand());
   const [currentActionIndex, setCurrentActionIndex] = useState(0);
   const [tableSize, setTableSize] = useState<6 | 8 | 9>(8);
+  const [heroPosition, setHeroPosition] = useState<string>("BTN");
   const isMobile = useIsMobile();
   
   // AI Analysis hook
   const { analysis, isLoading: isAnalyzing, error: analysisError, analyzeHand, clearAnalysis } = useHandAnalysisAI();
+
+  // Available positions for the current table size
+  const availablePositions = useMemo(() => getPositionsForTableSize(tableSize), [tableSize]);
+
+  // Update hero position if current position is not available for the new table size
+  useMemo(() => {
+    if (!availablePositions.includes(heroPosition)) {
+      setHeroPosition("BTN");
+    }
+  }, [availablePositions, heroPosition]);
 
   // Generate player stats (simulated for demo)
   const generatePlayerStats = (position: string, isHero: boolean): PlayerStats | undefined => {
@@ -126,33 +144,47 @@ export default function HandAnalysis() {
 
   // Generate table players based on parsed hand or defaults
   const tablePlayers = useMemo((): TablePlayer[] => {
-    // Demo players base (6-max)
-    const demoPlayers: TablePlayer[] = [
-      { position: "BTN", name: "Herói", stack: 500, isHero: true, isActive: true, cards: [{ rank: "A", suit: "spades" }, { rank: "K", suit: "hearts" }] },
-      { position: "SB", name: "Player2", stack: 485, isHero: false, isActive: true, stats: generatePlayerStats("SB", false) },
-      { position: "BB", name: "Vilão", stack: 520, isHero: false, isActive: true, stats: generatePlayerStats("BB", false) },
-      { position: "UTG", name: "Player4", stack: 450, isHero: false, isActive: false, hasFolded: true, stats: generatePlayerStats("UTG", false) },
-      { position: "MP", name: "Player5", stack: 380, isHero: false, isActive: false, hasFolded: true, stats: generatePlayerStats("MP", false) },
-      { position: "CO", name: "Player6", stack: 610, isHero: false, isActive: false, hasFolded: true, stats: generatePlayerStats("CO", false) },
-    ];
+    const positions = getPositionsForTableSize(tableSize);
+    
+    // Generate player names dynamically
+    const getPlayerName = (position: string, isHero: boolean): string => {
+      if (isHero) return "Herói";
+      const positionIndex = positions.indexOf(position);
+      return `Player${positionIndex + 1}`;
+    };
 
-    if (tableSize === 8) {
-      demoPlayers.push(
-        { position: "UTG+1", name: "Player7", stack: 420, isHero: false, isActive: false, hasFolded: true, stats: generatePlayerStats("UTG+1", false) },
-        { position: "HJ", name: "Player8", stack: 550, isHero: false, isActive: false, hasFolded: true, stats: generatePlayerStats("HJ", false) },
-      );
-    }
+    // Generate random stack for variety
+    const getPlayerStack = (position: string, isHero: boolean): number => {
+      if (isHero) return 500;
+      // Generate pseudo-random but consistent stacks based on position
+      const baseStacks: Record<string, number> = {
+        "SB": 485, "BB": 520, "UTG": 450, "UTG+1": 420, 
+        "MP": 380, "MP+1": 390, "HJ": 550, "CO": 610, "BTN": 500
+      };
+      return baseStacks[position] || 500;
+    };
 
-    if (tableSize === 9) {
-      demoPlayers.push(
-        { position: "UTG+1", name: "Player7", stack: 420, isHero: false, isActive: false, hasFolded: true, stats: generatePlayerStats("UTG+1", false) },
-        { position: "MP+1", name: "Player8", stack: 390, isHero: false, isActive: false, hasFolded: true, stats: generatePlayerStats("MP+1", false) },
-        { position: "HJ", name: "Player9", stack: 550, isHero: false, isActive: false, hasFolded: true, stats: generatePlayerStats("HJ", false) },
-      );
-    }
+    // Determine active status (blinds and hero are always active for demo)
+    const isActivePosition = (position: string, isHero: boolean): boolean => {
+      if (isHero) return true;
+      if (position === "SB" || position === "BB") return true;
+      return false;
+    };
 
-    return demoPlayers;
-  }, [tableSize, parsedHand]);
+    return positions.map((position) => {
+      const isHero = position === heroPosition;
+      return {
+        position,
+        name: getPlayerName(position, isHero),
+        stack: getPlayerStack(position, isHero),
+        isHero,
+        isActive: isActivePosition(position, isHero),
+        hasFolded: !isActivePosition(position, isHero),
+        cards: isHero ? [{ rank: "A", suit: "spades" }, { rank: "K", suit: "hearts" }] : undefined,
+        stats: isHero ? undefined : generatePlayerStats(position, false),
+      };
+    });
+  }, [tableSize, heroPosition, parsedHand]);
 
   // Get cards based on parsed hand or defaults
   const heroCards = useMemo(() => {
@@ -317,7 +349,7 @@ export default function HandAnalysis() {
         turn: boardCards.turn as { rank: string; suit: string } | null,
         river: boardCards.river as { rank: string; suit: string } | null,
       },
-      heroPosition: parsedHand?.heroPosition || "BTN",
+      heroPosition: parsedHand?.heroPosition || heroPosition,
       villainPosition: villain?.position || "BB",
       currentStreet,
       actions: actionHistory.map(a => ({
@@ -330,7 +362,7 @@ export default function HandAnalysis() {
       heroStack: parsedHand?.hero?.stack || 500,
       villainStack: villain?.stack || 485,
     });
-  }, [heroCards, boardCards, currentStreet, actionHistory, potSize, parsedHand, tablePlayers, analyzeHand]);
+  }, [heroCards, boardCards, currentStreet, actionHistory, potSize, parsedHand, tablePlayers, analyzeHand, heroPosition]);
 
   // Get player type color
   const getPlayerTypeColor = (type: string) => {
@@ -692,7 +724,23 @@ Dealt to Hero [Ah Kd]
             </p>
           </div>
           
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
+            {/* Hero position selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground hidden sm:inline">Herói:</span>
+              <select
+                value={heroPosition}
+                onChange={(e) => setHeroPosition(e.target.value)}
+                className="px-2 py-1.5 text-xs font-medium rounded-lg border border-[hsl(220,15%,20%)] bg-[hsl(220,15%,10%)] text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+              >
+                {availablePositions.map((pos) => (
+                  <option key={pos} value={pos}>
+                    {pos}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Table size toggle */}
             <div className="flex rounded-lg border border-[hsl(220,15%,20%)] overflow-hidden">
               {([6, 8, 9] as const).map((size) => (
