@@ -6,67 +6,23 @@ interface HandData {
   ev?: number;
 }
 
-// GTO-style range data for different positions (simplified for demo)
-const generateRange = (openPercent: number): Record<string, HandData> => {
-  const ranks = ["A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"];
+const ranks = ["A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"];
+
+// Helper to generate range based on tightness percentage
+const generateRange = (config: {
+  premiumPairs: boolean;
+  mediumPairs: boolean;
+  smallPairs: boolean;
+  broadwaysSuited: boolean;
+  broadwaysOffsuit: boolean;
+  suitedConnectors: boolean;
+  suitedAces: boolean;
+  suitedGappers: boolean;
+  offsuitsWeak: boolean;
+}): Record<string, HandData> => {
   const range: Record<string, HandData> = {};
   
-  // Premium pairs
-  const premiumPairs = ["AA", "KK", "QQ", "JJ", "TT"];
-  premiumPairs.forEach(h => {
-    range[h] = { action: "raise", frequency: 1, ev: 0.15 };
-  });
-  
-  // Medium pairs
-  const mediumPairs = ["99", "88", "77", "66"];
-  mediumPairs.forEach(h => {
-    range[h] = { action: openPercent > 15 ? "raise" : "fold", frequency: 0.9, ev: 0.08 };
-  });
-  
-  // Small pairs
-  const smallPairs = ["55", "44", "33", "22"];
-  smallPairs.forEach(h => {
-    range[h] = { action: openPercent > 20 ? "raise" : "fold", frequency: 0.7, ev: 0.03 };
-  });
-  
-  // Premium suited hands
-  range["AKs"] = { action: "raise", frequency: 1, ev: 0.12 };
-  range["AQs"] = { action: "raise", frequency: 1, ev: 0.10 };
-  range["AJs"] = { action: "raise", frequency: 1, ev: 0.08 };
-  range["ATs"] = { action: "raise", frequency: 0.95, ev: 0.06 };
-  range["KQs"] = { action: "raise", frequency: 1, ev: 0.09 };
-  range["KJs"] = { action: "raise", frequency: 0.95, ev: 0.07 };
-  range["QJs"] = { action: "raise", frequency: 0.9, ev: 0.05 };
-  range["JTs"] = { action: "raise", frequency: 0.85, ev: 0.04 };
-  
-  // Premium offsuit
-  range["AKo"] = { action: "raise", frequency: 1, ev: 0.10 };
-  range["AQo"] = { action: "raise", frequency: 0.95, ev: 0.07 };
-  range["AJo"] = { action: openPercent > 15 ? "raise" : "fold", frequency: 0.8, ev: 0.04 };
-  range["KQo"] = { action: openPercent > 18 ? "raise" : "fold", frequency: 0.85, ev: 0.05 };
-  
-  // Suited connectors
-  if (openPercent > 20) {
-    range["T9s"] = { action: "raise", frequency: 0.75, ev: 0.02 };
-    range["98s"] = { action: "raise", frequency: 0.7, ev: 0.01 };
-    range["87s"] = { action: "raise", frequency: 0.65, ev: 0.01 };
-    range["76s"] = { action: openPercent > 25 ? "raise" : "fold", frequency: 0.6, ev: 0.005 };
-    range["65s"] = { action: openPercent > 30 ? "raise" : "fold", frequency: 0.55, ev: 0.003 };
-  }
-  
-  // Suited aces
-  if (openPercent > 22) {
-    range["A9s"] = { action: "raise", frequency: 0.8, ev: 0.04 };
-    range["A8s"] = { action: "raise", frequency: 0.75, ev: 0.03 };
-    range["A7s"] = { action: "raise", frequency: 0.7, ev: 0.02 };
-    range["A6s"] = { action: "raise", frequency: 0.65, ev: 0.015 };
-    range["A5s"] = { action: "raise", frequency: 0.8, ev: 0.025 };
-    range["A4s"] = { action: "raise", frequency: 0.75, ev: 0.02 };
-    range["A3s"] = { action: "raise", frequency: 0.7, ev: 0.015 };
-    range["A2s"] = { action: "raise", frequency: 0.65, ev: 0.01 };
-  }
-  
-  // Fill remaining with folds
+  // Fill all with folds first
   for (let i = 0; i < ranks.length; i++) {
     for (let j = 0; j < ranks.length; j++) {
       let hand: string;
@@ -77,23 +33,624 @@ const generateRange = (openPercent: number): Record<string, HandData> => {
       } else {
         hand = `${ranks[j]}${ranks[i]}o`;
       }
-      
-      if (!range[hand]) {
-        range[hand] = { action: "fold", frequency: 0, ev: -0.01 };
-      }
+      range[hand] = { action: "fold", frequency: 0, ev: -0.02 };
     }
   }
-  
+
+  // Premium pairs (AA-TT)
+  if (config.premiumPairs) {
+    ["AA", "KK", "QQ", "JJ", "TT"].forEach(h => {
+      range[h] = { action: "raise", frequency: 1, ev: 0.15 };
+    });
+  }
+
+  // Medium pairs (99-66)
+  if (config.mediumPairs) {
+    ["99", "88", "77", "66"].forEach(h => {
+      range[h] = { action: "raise", frequency: 0.9, ev: 0.06 };
+    });
+  }
+
+  // Small pairs (55-22)
+  if (config.smallPairs) {
+    ["55", "44", "33", "22"].forEach(h => {
+      range[h] = { action: "raise", frequency: 0.7, ev: 0.02 };
+    });
+  }
+
+  // Broadway suited
+  if (config.broadwaysSuited) {
+    ["AKs", "AQs", "AJs", "ATs", "KQs", "KJs", "KTs", "QJs", "QTs", "JTs"].forEach(h => {
+      range[h] = { action: "raise", frequency: 1, ev: 0.10 };
+    });
+  }
+
+  // Broadway offsuit
+  if (config.broadwaysOffsuit) {
+    ["AKo", "AQo", "AJo", "ATo", "KQo", "KJo", "QJo"].forEach(h => {
+      range[h] = { action: "raise", frequency: 0.85, ev: 0.05 };
+    });
+  }
+
+  // Suited connectors
+  if (config.suitedConnectors) {
+    ["T9s", "98s", "87s", "76s", "65s", "54s"].forEach(h => {
+      range[h] = { action: "raise", frequency: 0.7, ev: 0.02 };
+    });
+  }
+
+  // Suited aces
+  if (config.suitedAces) {
+    ["A9s", "A8s", "A7s", "A6s", "A5s", "A4s", "A3s", "A2s"].forEach(h => {
+      range[h] = { action: "raise", frequency: 0.8, ev: 0.03 };
+    });
+  }
+
+  // Suited gappers
+  if (config.suitedGappers) {
+    ["J9s", "T8s", "97s", "86s", "75s", "64s", "53s"].forEach(h => {
+      range[h] = { action: "raise", frequency: 0.5, ev: 0.01 };
+    });
+  }
+
+  // Weak offsuit (K9o, Q9o etc)
+  if (config.offsuitsWeak) {
+    ["KTo", "QTo", "JTo", "K9o", "Q9o"].forEach(h => {
+      range[h] = { action: "raise", frequency: 0.6, ev: 0.01 };
+    });
+  }
+
   return range;
 };
 
-export const positionRanges: Record<string, Record<string, HandData>> = {
-  UTG: generateRange(12),
-  "UTG1": generateRange(14),
-  MP: generateRange(17),
-  HJ: generateRange(22),
-  CO: generateRange(28),
-  BTN: generateRange(42),
-  SB: generateRange(35),
-  BB: generateRange(100), // BB is special - calls/3bets
+// Position-based opening ranges
+export const openRanges: Record<string, Record<string, HandData>> = {
+  UTG: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: false,
+    broadwaysSuited: true,
+    broadwaysOffsuit: false,
+    suitedConnectors: false,
+    suitedAces: false,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  UTG1: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: false,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: false,
+    suitedAces: false,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  MP: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: false,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  HJ: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  CO: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: true,
+    offsuitsWeak: false,
+  }),
+  BTN: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: true,
+    offsuitsWeak: true,
+  }),
+  SB: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: true,
+  }),
+  BB: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: true,
+    offsuitsWeak: true,
+  }),
 };
+
+// 3-Bet ranges (tighter)
+export const threeBetRanges: Record<string, Record<string, HandData>> = {
+  UTG: generateRange({
+    premiumPairs: true,
+    mediumPairs: false,
+    smallPairs: false,
+    broadwaysSuited: false,
+    broadwaysOffsuit: false,
+    suitedConnectors: false,
+    suitedAces: false,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  MP: generateRange({
+    premiumPairs: true,
+    mediumPairs: false,
+    smallPairs: false,
+    broadwaysSuited: false,
+    broadwaysOffsuit: false,
+    suitedConnectors: false,
+    suitedAces: false,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  HJ: generateRange({
+    premiumPairs: true,
+    mediumPairs: false,
+    smallPairs: false,
+    broadwaysSuited: true,
+    broadwaysOffsuit: false,
+    suitedConnectors: false,
+    suitedAces: false,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  CO: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: false,
+    broadwaysSuited: true,
+    broadwaysOffsuit: false,
+    suitedConnectors: false,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  BTN: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: false,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  SB: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: false,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  BB: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: false,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+};
+
+// Cold Call ranges (calling a raise)
+export const coldCallRanges: Record<string, Record<string, HandData>> = {
+  MP: generateRange({
+    premiumPairs: false,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: false,
+    suitedConnectors: true,
+    suitedAces: false,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  HJ: generateRange({
+    premiumPairs: false,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: false,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  CO: generateRange({
+    premiumPairs: false,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: true,
+    offsuitsWeak: false,
+  }),
+  BTN: generateRange({
+    premiumPairs: false,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: true,
+    offsuitsWeak: true,
+  }),
+  SB: generateRange({
+    premiumPairs: false,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: false,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  BB: generateRange({
+    premiumPairs: false,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: true,
+    offsuitsWeak: true,
+  }),
+};
+
+// Squeeze ranges (3-betting after raise + call)
+export const squeezeRanges: Record<string, Record<string, HandData>> = {
+  CO: generateRange({
+    premiumPairs: true,
+    mediumPairs: false,
+    smallPairs: false,
+    broadwaysSuited: true,
+    broadwaysOffsuit: false,
+    suitedConnectors: false,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  BTN: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: false,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  SB: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: false,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  BB: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: false,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: true,
+    offsuitsWeak: false,
+  }),
+};
+
+// Iso-Raise ranges (raising over limpers)
+export const isoRaiseRanges: Record<string, Record<string, HandData>> = {
+  MP: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: false,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  HJ: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: true,
+  }),
+  CO: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: true,
+    offsuitsWeak: true,
+  }),
+  BTN: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: true,
+    offsuitsWeak: true,
+  }),
+  SB: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: true,
+    offsuitsWeak: true,
+  }),
+};
+
+// vs 3-Bet ranges (what to do facing a 3-bet)
+export const vs3BetRanges: Record<string, Record<string, HandData>> = {
+  UTG: generateRange({
+    premiumPairs: true,
+    mediumPairs: false,
+    smallPairs: false,
+    broadwaysSuited: true,
+    broadwaysOffsuit: false,
+    suitedConnectors: false,
+    suitedAces: false,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  MP: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: false,
+    broadwaysSuited: true,
+    broadwaysOffsuit: false,
+    suitedConnectors: false,
+    suitedAces: false,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  HJ: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: false,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: false,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  CO: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  BTN: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: true,
+    offsuitsWeak: false,
+  }),
+  SB: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+};
+
+// 4-Bet ranges
+export const fourBetRanges: Record<string, Record<string, HandData>> = {
+  UTG: generateRange({
+    premiumPairs: true,
+    mediumPairs: false,
+    smallPairs: false,
+    broadwaysSuited: false,
+    broadwaysOffsuit: false,
+    suitedConnectors: false,
+    suitedAces: false,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  MP: generateRange({
+    premiumPairs: true,
+    mediumPairs: false,
+    smallPairs: false,
+    broadwaysSuited: false,
+    broadwaysOffsuit: false,
+    suitedConnectors: false,
+    suitedAces: false,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  CO: generateRange({
+    premiumPairs: true,
+    mediumPairs: false,
+    smallPairs: false,
+    broadwaysSuited: true,
+    broadwaysOffsuit: false,
+    suitedConnectors: false,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  BTN: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: false,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: false,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  SB: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: false,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: false,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  BB: generateRange({
+    premiumPairs: true,
+    mediumPairs: true,
+    smallPairs: false,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: false,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+};
+
+// BB Defense ranges (defending big blind vs raises)
+export const bbDefenseRanges: Record<string, Record<string, HandData>> = {
+  vsUTG: generateRange({
+    premiumPairs: false,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: false,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: false,
+    offsuitsWeak: false,
+  }),
+  vsMP: generateRange({
+    premiumPairs: false,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: true,
+    offsuitsWeak: false,
+  }),
+  vsCO: generateRange({
+    premiumPairs: false,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: true,
+    offsuitsWeak: true,
+  }),
+  vsBTN: generateRange({
+    premiumPairs: false,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: true,
+    offsuitsWeak: true,
+  }),
+  vsSB: generateRange({
+    premiumPairs: false,
+    mediumPairs: true,
+    smallPairs: true,
+    broadwaysSuited: true,
+    broadwaysOffsuit: true,
+    suitedConnectors: true,
+    suitedAces: true,
+    suitedGappers: true,
+    offsuitsWeak: true,
+  }),
+};
+
+// Legacy export for backward compatibility
+export const positionRanges = openRanges;
