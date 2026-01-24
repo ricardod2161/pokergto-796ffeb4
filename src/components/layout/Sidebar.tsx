@@ -7,6 +7,7 @@ import {
   PlayCircle, 
   BarChart3,
   Crosshair,
+  Target,
   LogOut,
   ChevronLeft,
   ChevronRight
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 const navigation = [
   { name: "Painel", href: "/dashboard", icon: LayoutDashboard },
   { name: "Ranges 8-Max", href: "/ranges", icon: Grid3X3 },
+  { name: "Treinamento", href: "/training", icon: Target },
   { name: "Calculadora Equity", href: "/equity", icon: Calculator },
   { name: "Calculadora EV", href: "/ev-calculator", icon: TrendingUp },
   { name: "Análise de Mãos", href: "/hand-analysis/import", icon: PlayCircle },

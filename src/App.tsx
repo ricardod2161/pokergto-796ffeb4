@@ -12,6 +12,7 @@ import EVCalculator from "./pages/EVCalculator";
 import Statistics from "./pages/Statistics";
 import HandAnalysis from "./pages/HandAnalysis";
 import BettingAssistant from "./pages/BettingAssistant";
+import Training from "./pages/Training";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/statistics" element={<Statistics />} />
             <Route path="/hand-analysis/import" element={<HandAnalysis />} />
             <Route path="/betting-assistant" element={<BettingAssistant />} />
+            <Route path="/training" element={<Training />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
