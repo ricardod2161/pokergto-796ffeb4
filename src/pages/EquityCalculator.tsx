@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PokerCard, CardPlaceholder } from "@/components/poker/PokerCard";
-import { Calculator, RotateCcw, History, Grid3X3, Trash2, TrendingUp, Percent, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { Calculator, RotateCcw, History, Grid3X3, Trash2, TrendingUp, Percent, ChevronDown, ChevronUp, Sparkles, Brain, Loader2, RefreshCw, Target, BookOpen, Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -9,10 +9,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Progress } from "@/components/ui/progress";
+import { useEquityAnalysis } from "@/hooks/useEquityAnalysis";
 
 type Suit = "hearts" | "diamonds" | "clubs" | "spades";
 type Rank = "A" | "K" | "Q" | "J" | "T" | "9" | "8" | "7" | "6" | "5" | "4" | "3" | "2";
+type Position = "BTN" | "CO" | "HJ" | "MP" | "UTG" | "BB" | "SB";
 
 interface Card {
   rank: Rank;
@@ -24,11 +25,22 @@ interface CalculationHistory {
   heroCards: Card[];
   boardCards: Card[];
   equity: number;
+  position: Position;
   timestamp: Date;
 }
 
 const ranks: Rank[] = ["A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"];
 const suits: Suit[] = ["spades", "hearts", "diamonds", "clubs"];
+
+const positions: { value: Position; label: string; description: string }[] = [
+  { value: "BTN", label: "BTN", description: "Button" },
+  { value: "CO", label: "CO", description: "Cutoff" },
+  { value: "HJ", label: "HJ", description: "Hijack" },
+  { value: "MP", label: "MP", description: "Middle" },
+  { value: "UTG", label: "UTG", description: "Under Gun" },
+  { value: "SB", label: "SB", description: "Small Blind" },
+  { value: "BB", label: "BB", description: "Big Blind" },
+];
 
 const suitSymbols: Record<Suit, string> = {
   hearts: "♥",
@@ -41,15 +53,25 @@ const formatCards = (cards: Card[]): string => {
   return cards.map(c => `${c.rank}${suitSymbols[c.suit]}`).join(" ");
 };
 
+const getStreet = (boardLength: number): "preflop" | "flop" | "turn" | "river" => {
+  if (boardLength === 0) return "preflop";
+  if (boardLength <= 3) return "flop";
+  if (boardLength === 4) return "turn";
+  return "river";
+};
+
 export default function EquityCalculator() {
   const isMobile = useIsMobile();
   const [heroCards, setHeroCards] = useState<Card[]>([]);
   const [boardCards, setBoardCards] = useState<Card[]>([]);
+  const [position, setPosition] = useState<Position>("BTN");
   const [showCardPicker, setShowCardPicker] = useState<"hero" | "board" | null>(null);
   const [results, setResults] = useState<{ win: number; tie: number; lose: number } | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [history, setHistory] = useState<CalculationHistory[]>([]);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(true);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+
+  const { analysis, isLoading: isAnalyzing, error: analysisError, analyzeEquity, clearAnalysis } = useEquityAnalysis();
 
   const handleCardSelect = (rank: Rank, suit: Suit) => {
     const card: Card = { rank, suit };
@@ -70,6 +92,7 @@ export default function EquityCalculator() {
       setBoardCards(boardCards.filter((_, i) => i !== index));
     }
     setResults(null);
+    clearAnalysis();
   };
 
   const isCardUsed = (rank: Rank, suit: Suit) => {
@@ -78,8 +101,8 @@ export default function EquityCalculator() {
 
   const handleCalculate = () => {
     setIsCalculating(true);
+    clearAnalysis();
     
-    // Simulate calculation delay for UX
     setTimeout(() => {
       const win = Math.round((Math.random() * 40 + 30) * 10) / 10;
       const tie = Math.round((Math.random() * 5) * 10) / 10;
@@ -88,12 +111,12 @@ export default function EquityCalculator() {
       setResults({ win, tie, lose });
       setIsCalculating(false);
       
-      // Add to history
       const newEntry: CalculationHistory = {
         id: Date.now().toString(),
         heroCards: [...heroCards],
         boardCards: [...boardCards],
         equity: win,
+        position,
         timestamp: new Date(),
       };
       setHistory(prev => [newEntry, ...prev].slice(0, 5));
@@ -105,12 +128,27 @@ export default function EquityCalculator() {
     setBoardCards([]);
     setResults(null);
     setShowCardPicker(null);
+    clearAnalysis();
+  };
+
+  const handleRequestAnalysis = () => {
+    if (!results || heroCards.length < 2) return;
+    
+    analyzeEquity({
+      heroCards,
+      boardCards,
+      position,
+      equity: results.win,
+      street: getStreet(boardCards.length),
+    });
   };
 
   const loadFromHistory = (entry: CalculationHistory) => {
     setHeroCards(entry.heroCards);
     setBoardCards(entry.boardCards);
+    setPosition(entry.position);
     setResults({ win: entry.equity, tie: 2.1, lose: 100 - entry.equity - 2.1 });
+    clearAnalysis();
   };
 
   const getEquityColor = (equity: number) => {
@@ -124,6 +162,37 @@ export default function EquityCalculator() {
     if (equity >= 40) return "bg-warning/20 border-warning/30";
     return "bg-destructive/20 border-destructive/30";
   };
+
+  const parseAnalysis = (text: string) => {
+    const sections: { title: string; content: string; icon: React.ReactNode }[] = [];
+    const parts = text.split(/\*\*([^*]+)\*\*/);
+    
+    let currentTitle = '';
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i].trim();
+      if (!part) continue;
+      
+      if (i % 2 === 1) {
+        currentTitle = part.replace(/[:\?]/g, '').trim();
+      } else if (currentTitle) {
+        let icon: React.ReactNode = <BookOpen className="w-3.5 h-3.5" />;
+        if (currentTitle.toLowerCase().includes('análise') || currentTitle.toLowerCase().includes('equity')) {
+          icon = <Target className="w-3.5 h-3.5" />;
+        } else if (currentTitle.toLowerCase().includes('estratégia')) {
+          icon = <BookOpen className="w-3.5 h-3.5" />;
+        } else if (currentTitle.toLowerCase().includes('dica')) {
+          icon = <Lightbulb className="w-3.5 h-3.5" />;
+        }
+        
+        sections.push({ title: currentTitle, content: part.trim(), icon });
+        currentTitle = '';
+      }
+    }
+    
+    return sections;
+  };
+
+  const canAnalyze = results !== null && heroCards.length >= 2 && !isAnalyzing;
 
   return (
     <div className="min-h-screen bg-background">
@@ -153,6 +222,31 @@ export default function EquityCalculator() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           {/* Input Section */}
           <div className="lg:col-span-2 space-y-4">
+            {/* Position Selector */}
+            <div className="rounded-xl bg-card/50 border border-border/50 p-4 md:p-5 backdrop-blur-sm transition-all hover:border-border">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2 h-2 rounded-full bg-accent" />
+                <h3 className="font-semibold text-foreground text-sm">Sua Posição</h3>
+              </div>
+              <div className="grid grid-cols-7 gap-1.5">
+                {positions.map((pos) => (
+                  <button
+                    key={pos.value}
+                    onClick={() => setPosition(pos.value)}
+                    className={cn(
+                      "flex flex-col items-center justify-center py-2 md:py-3 rounded-lg border transition-all",
+                      position === pos.value
+                        ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
+                        : "bg-card/50 text-muted-foreground border-border/50 hover:bg-muted/50 hover:text-foreground hover:border-border"
+                    )}
+                  >
+                    <span className="font-bold text-xs md:text-sm">{pos.label}</span>
+                    <span className="text-[9px] md:text-[10px] opacity-70 hidden sm:block">{pos.description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Hero Hand */}
             <div className="rounded-xl bg-card/50 border border-border/50 p-4 md:p-5 backdrop-blur-sm transition-all hover:border-border">
               <div className="flex items-center justify-between mb-4">
@@ -293,7 +387,7 @@ export default function EquityCalculator() {
                 </div>
                 <div 
                   className="grid gap-1 md:gap-1.5 p-2 rounded-lg bg-muted/30" 
-                  style={{ gridTemplateColumns: `repeat(${isMobile ? 13 : 13}, 1fr)` }}
+                  style={{ gridTemplateColumns: `repeat(13, 1fr)` }}
                 >
                   {suits.map(suit => (
                     ranks.map(rank => {
@@ -344,18 +438,22 @@ export default function EquityCalculator() {
             </Button>
           </div>
 
-          {/* Results Section */}
+          {/* Results & AI Section */}
           <div className="space-y-4">
             {/* Results Card */}
             <div className="rounded-xl bg-card/50 border border-border/50 p-4 md:p-5 backdrop-blur-sm">
               <div className="flex items-center gap-2 mb-4">
                 <TrendingUp className="w-4 h-4 text-primary" />
                 <h3 className="font-semibold text-foreground">Resultados</h3>
+                {results && (
+                  <span className="ml-auto text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                    {position}
+                  </span>
+                )}
               </div>
               
               {results ? (
                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  {/* Main equity display */}
                   <div className={cn(
                     "text-center py-6 md:py-8 rounded-xl border transition-all",
                     getEquityBgColor(results.win)
@@ -369,7 +467,6 @@ export default function EquityCalculator() {
                     <p className="text-xs text-muted-foreground mt-2">Sua Equity</p>
                   </div>
 
-                  {/* Breakdown */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between p-3 rounded-lg bg-success/10 border border-success/20 transition-all hover:bg-success/15">
                       <div className="flex items-center gap-2">
@@ -394,7 +491,6 @@ export default function EquityCalculator() {
                     </div>
                   </div>
 
-                  {/* Equity bar */}
                   <div className="space-y-2">
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>Distribuição</span>
@@ -428,13 +524,142 @@ export default function EquityCalculator() {
               )}
             </div>
 
+            {/* AI Analysis Panel */}
+            <div className="rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)] overflow-hidden">
+              <div className="px-4 py-3 border-b border-[hsl(220,15%,13%)] flex items-center justify-between bg-gradient-to-r from-[hsl(220,18%,10%)] to-[hsl(260,30%,12%)]">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20">
+                    <Brain className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground text-sm">Análise IA</h3>
+                    <p className="text-[9px] text-muted-foreground">Insights estratégicos</p>
+                  </div>
+                </div>
+                {analysis && !isAnalyzing && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRequestAnalysis}
+                    disabled={!canAnalyze}
+                    className="h-7 px-2 text-xs"
+                  >
+                    <RefreshCw className="w-3 h-3 mr-1" />
+                    Atualizar
+                  </Button>
+                )}
+              </div>
+
+              <div className="p-4 max-h-[350px] overflow-y-auto">
+                {!analysis && !isAnalyzing && !analysisError && (
+                  <div className="flex flex-col items-center justify-center py-6 text-center">
+                    <div className="relative mb-4">
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500/10 to-blue-500/10 flex items-center justify-center">
+                        <Brain className="w-7 h-7 text-purple-400/50" />
+                      </div>
+                      <Sparkles className="w-5 h-5 text-yellow-400 absolute -top-1 -right-1 animate-pulse" />
+                    </div>
+                    <h4 className="text-sm font-medium text-foreground mb-1">
+                      {results ? "Analisar esta equity?" : "Calcule primeiro"}
+                    </h4>
+                    <p className="text-xs text-muted-foreground mb-4 max-w-[200px]">
+                      {results 
+                        ? "Obtenha insights estratégicos baseados na sua posição e equity"
+                        : "Calcule a equity para receber análise da IA"}
+                    </p>
+                    {results && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRequestAnalysis}
+                        disabled={!canAnalyze}
+                        className="border-purple-500/30 hover:bg-purple-500/10 text-purple-300"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                        Analisar com IA
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {isAnalyzing && (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="relative">
+                      <Loader2 className="w-8 h-8 text-purple-400 animate-spin" />
+                      <div className="absolute inset-0 w-8 h-8 border-2 border-purple-500/20 rounded-full animate-ping" />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-3">Analisando equity...</p>
+                  </div>
+                )}
+
+                {analysisError && (
+                  <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30 text-center">
+                    <p className="text-xs text-destructive mb-2">{analysisError}</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRequestAnalysis}
+                      disabled={!canAnalyze}
+                      className="h-7 text-xs text-destructive hover:text-destructive"
+                    >
+                      Tentar novamente
+                    </Button>
+                  </div>
+                )}
+
+                {analysis && !isAnalyzing && (
+                  <div className="space-y-3">
+                    {parseAnalysis(analysis).map((section, i) => (
+                      <div 
+                        key={i} 
+                        className={cn(
+                          "p-3 rounded-lg border",
+                          i === 0 && "bg-[hsl(142,70%,25%)]/10 border-[hsl(142,70%,35%)]/30",
+                          i === 1 && "bg-[hsl(210,85%,35%)]/10 border-[hsl(210,85%,45%)]/30",
+                          i === 2 && "bg-[hsl(43,90%,45%)]/10 border-[hsl(43,90%,50%)]/30",
+                          i > 2 && "bg-[hsl(220,15%,12%)] border-[hsl(220,15%,18%)]"
+                        )}
+                      >
+                        <div className={cn(
+                          "flex items-center gap-2 mb-2",
+                          i === 0 && "text-[hsl(142,70%,55%)]",
+                          i === 1 && "text-[hsl(210,85%,65%)]",
+                          i === 2 && "text-[hsl(43,90%,55%)]",
+                          i > 2 && "text-foreground"
+                        )}>
+                          {section.icon}
+                          <span className="text-xs font-semibold">{section.title}</span>
+                        </div>
+                        <p className="text-[11px] text-foreground/80 leading-relaxed">
+                          {section.content}
+                        </p>
+                      </div>
+                    ))}
+
+                    {parseAnalysis(analysis).length === 0 && (
+                      <p className="text-xs text-foreground/80 leading-relaxed">
+                        {analysis}
+                      </p>
+                    )}
+
+                    <div className="flex items-center gap-1.5 pt-2 border-t border-[hsl(220,15%,15%)]">
+                      <Sparkles className="w-3 h-3 text-purple-400/50" />
+                      <span className="text-[10px] text-muted-foreground">
+                        Análise gerada por IA
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* History */}
             <Collapsible open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
               <div className="rounded-xl bg-card/50 border border-border/50 backdrop-blur-sm overflow-hidden">
-                <CollapsibleTrigger className="w-full p-4 md:p-5 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                <CollapsibleTrigger className="w-full p-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
                   <div className="flex items-center gap-2">
                     <History className="w-4 h-4 text-muted-foreground" />
-                    <h3 className="font-semibold text-foreground">Cálculos Recentes</h3>
+                    <h3 className="font-semibold text-foreground text-sm">Histórico</h3>
                     {history.length > 0 && (
                       <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
                         {history.length}
@@ -448,7 +673,7 @@ export default function EquityCalculator() {
                   )}
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="px-4 md:px-5 pb-4 md:pb-5">
+                  <div className="px-4 pb-4">
                     {history.length > 0 ? (
                       <div className="space-y-2">
                         {history.map((entry) => (
@@ -458,9 +683,14 @@ export default function EquityCalculator() {
                             className="w-full p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all text-left group"
                           >
                             <div className="flex items-center justify-between mb-1">
-                              <span className="font-mono text-sm font-medium text-foreground">
-                                {formatCards(entry.heroCards)}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-sm font-medium text-foreground">
+                                  {formatCards(entry.heroCards)}
+                                </span>
+                                <span className="text-[10px] bg-muted/50 px-1.5 py-0.5 rounded text-muted-foreground">
+                                  {entry.position}
+                                </span>
+                              </div>
                               <span className={cn(
                                 "font-mono font-bold text-sm",
                                 getEquityColor(entry.equity)
