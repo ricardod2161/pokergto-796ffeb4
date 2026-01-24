@@ -4,9 +4,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { 
   Upload, Play, Pause, SkipBack, SkipForward, AlertTriangle, CheckCircle, 
   Info, ChevronRight, TrendingUp, Target, Brain, Users, DollarSign,
-  HelpCircle, Lightbulb, Eye, Zap, ChevronLeft, FileText, Trash2, Sparkles
+  HelpCircle, Lightbulb, Eye, Zap, ChevronLeft, FileText, Trash2, Sparkles, X
 } from "lucide-react";
-import { PokerCard } from "@/components/poker/PokerCard";
+import { PokerCard, CardPlaceholder } from "@/components/poker/PokerCard";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { parseHandHistory, generateSampleHand, type ParsedHand, type Street, type Action } from "@/lib/handHistoryParser";
@@ -32,6 +32,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
+type Suit = "hearts" | "diamonds" | "clubs" | "spades";
+type Rank = "A" | "K" | "Q" | "J" | "T" | "9" | "8" | "7" | "6" | "5" | "4" | "3" | "2";
+
+interface HeroCard {
+  rank: Rank;
+  suit: Suit;
+}
 
 interface PlayerStats {
   vpip: number;
@@ -99,6 +112,10 @@ const getPositionsForTableSize = (size: 6 | 8 | 9): string[] => {
   return ["BTN", "SB", "BB", "UTG", "UTG+1", "MP", "MP+1", "HJ", "CO"];
 };
 
+const ranks: Rank[] = ["A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"];
+const suits: Suit[] = ["spades", "hearts", "diamonds", "clubs"];
+const suitSymbols: Record<Suit, string> = { hearts: "♥", diamonds: "♦", clubs: "♣", spades: "♠" };
+
 export default function HandAnalysis() {
   const [handHistory, setHandHistory] = useState("");
   const [isPlaying, setIsPlaying] = useState(false);
@@ -108,6 +125,11 @@ export default function HandAnalysis() {
   const [currentActionIndex, setCurrentActionIndex] = useState(0);
   const [tableSize, setTableSize] = useState<6 | 8 | 9>(8);
   const [heroPosition, setHeroPosition] = useState<string>("BTN");
+  const [customHeroCards, setCustomHeroCards] = useState<HeroCard[]>([
+    { rank: "A", suit: "spades" },
+    { rank: "K", suit: "hearts" }
+  ]);
+  const [isCardPickerOpen, setIsCardPickerOpen] = useState(false);
   const isMobile = useIsMobile();
   
   // AI Analysis hook
@@ -122,6 +144,24 @@ export default function HandAnalysis() {
       setHeroPosition("BTN");
     }
   }, [availablePositions, heroPosition]);
+
+  // Card picker handlers
+  const handleCardSelect = (card: HeroCard) => {
+    if (customHeroCards.length < 2) {
+      setCustomHeroCards([...customHeroCards, card]);
+      if (customHeroCards.length === 1) {
+        setIsCardPickerOpen(false);
+      }
+    }
+  };
+
+  const handleRemoveCard = (index: number) => {
+    setCustomHeroCards(customHeroCards.filter((_, i) => i !== index));
+  };
+
+  const isCardUsed = (rank: Rank, suit: Suit) => {
+    return customHeroCards.some(c => c.rank === rank && c.suit === suit);
+  };
 
   // Generate player stats (simulated for demo)
   const generatePlayerStats = (position: string, isHero: boolean): PlayerStats | undefined => {
