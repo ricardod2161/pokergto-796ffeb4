@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.range-analysis]
 verify_jwt = false
+
+[functions.ev-analysis]
+verify_jwt = false
+
+[functions.equity-analysis]
+verify_jwt = false

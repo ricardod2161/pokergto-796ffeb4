@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +31,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useEVAnalysis } from "@/hooks/useEVAnalysis";
+import { EVAIPanel } from "@/components/ev/EVAIPanel";
 
 interface HistoryEntry {
   id: string;
@@ -59,6 +61,13 @@ export default function EVCalculator() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [showEducation, setShowEducation] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
+  
+  const { analysis, isLoading: isAILoading, error: aiError, analyzeEV, clearAnalysis } = useEVAnalysis();
+
+  // Clear AI analysis when inputs change significantly
+  useEffect(() => {
+    clearAnalysis();
+  }, [potSize, callCost, equity, impliedOdds, clearAnalysis]);
 
   const handleCalculate = () => {
     const pot = parseFloat(potSize) || 0;
@@ -109,6 +118,22 @@ export default function EVCalculator() {
     setEquity("50");
     setImpliedOdds("");
     setResult(null);
+    clearAnalysis();
+  };
+
+  const handleRequestAIAnalysis = () => {
+    if (!result) return;
+    
+    analyzeEV({
+      potSize: parseFloat(potSize) || 0,
+      callCost: parseFloat(callCost) || 0,
+      equity: parseFloat(equity) || 0,
+      impliedOdds: parseFloat(impliedOdds) || 0,
+      ev: result.ev,
+      potOdds: result.potOdds,
+      requiredEquity: result.requiredEquity,
+      recommendation: result.recommendation,
+    });
   };
 
   const loadFromHistory = (entry: HistoryEntry) => {
@@ -580,6 +605,16 @@ export default function EVCalculator() {
                   </div>
                 )}
               </div>
+
+              {/* AI Analysis Panel */}
+              <EVAIPanel
+                analysis={analysis}
+                isLoading={isAILoading}
+                error={aiError}
+                onRequestAnalysis={handleRequestAIAnalysis}
+                canAnalyze={!!result && !isAILoading}
+                hasResult={!!result}
+              />
 
               {/* Educational Cards */}
               <div className={cn(
