@@ -220,22 +220,19 @@ export default function HandAnalysis() {
         isHero,
         isActive: isActivePosition(position, isHero),
         hasFolded: !isActivePosition(position, isHero),
-        cards: isHero ? [{ rank: "A", suit: "spades" }, { rank: "K", suit: "hearts" }] : undefined,
+        cards: isHero ? customHeroCards : undefined,
         stats: isHero ? undefined : generatePlayerStats(position, false),
       };
     });
-  }, [tableSize, heroPosition, parsedHand]);
+  }, [tableSize, heroPosition, parsedHand, customHeroCards]);
 
-  // Get cards based on parsed hand or defaults
+  // Get cards based on parsed hand or custom selection
   const heroCards = useMemo(() => {
     if (parsedHand?.heroCards && parsedHand.heroCards.length >= 2) {
       return parsedHand.heroCards;
     }
-    return [
-      { rank: "A" as const, suit: "spades" as const },
-      { rank: "K" as const, suit: "hearts" as const }
-    ];
-  }, [parsedHand]);
+    return customHeroCards;
+  }, [parsedHand, customHeroCards]);
   
   const boardCards = useMemo(() => {
     if (parsedHand?.communityCards) {
@@ -765,9 +762,122 @@ Dealt to Hero [Ah Kd]
           </div>
           
           <div className="flex gap-2 flex-wrap items-center">
+            {/* Hero cards selector */}
+            <Popover open={isCardPickerOpen} onOpenChange={setIsCardPickerOpen}>
+              <PopoverTrigger asChild>
+                <button className="flex items-center gap-1.5 px-2 py-1 rounded-lg border border-[hsl(220,15%,20%)] bg-[hsl(220,15%,10%)] hover:bg-[hsl(220,15%,15%)] transition-colors">
+                  <span className="text-xs text-muted-foreground hidden sm:inline">Mão:</span>
+                  <div className="flex gap-0.5">
+                    {customHeroCards.length > 0 ? (
+                      customHeroCards.map((card, i) => (
+                        <div 
+                          key={i} 
+                          className={cn(
+                            "w-6 h-8 rounded text-[10px] font-bold flex flex-col items-center justify-center bg-white",
+                            (card.suit === "hearts" || card.suit === "diamonds") ? "text-red-500" : "text-gray-900"
+                          )}
+                        >
+                          <span>{card.rank}</span>
+                          <span className="text-[8px] -mt-0.5">{suitSymbols[card.suit]}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <>
+                        <div className="w-6 h-8 rounded bg-[hsl(220,15%,20%)] border border-dashed border-[hsl(220,15%,30%)]" />
+                        <div className="w-6 h-8 rounded bg-[hsl(220,15%,20%)] border border-dashed border-[hsl(220,15%,30%)]" />
+                      </>
+                    )}
+                  </div>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent 
+                className="w-auto p-3 bg-[hsl(220,18%,10%)] border-[hsl(220,15%,20%)] shadow-xl z-50" 
+                align="start"
+                sideOffset={8}
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-foreground">Selecionar Cartas</h4>
+                    {customHeroCards.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setCustomHeroCards([])}
+                        className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Limpar
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {/* Selected cards preview */}
+                  <div className="flex gap-2 items-center justify-center p-2 rounded-lg bg-[hsl(220,15%,8%)]">
+                    {customHeroCards.map((card, i) => (
+                      <div key={i} className="relative group">
+                        <div 
+                          className={cn(
+                            "w-10 h-14 rounded-md text-sm font-bold flex flex-col items-center justify-center bg-white shadow-md",
+                            (card.suit === "hearts" || card.suit === "diamonds") ? "text-red-500" : "text-gray-900"
+                          )}
+                        >
+                          <span>{card.rank}</span>
+                          <span className="text-xs">{suitSymbols[card.suit]}</span>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveCard(i)}
+                          className="absolute -top-1 -right-1 w-4 h-4 bg-destructive rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3 text-destructive-foreground" />
+                        </button>
+                      </div>
+                    ))}
+                    {Array.from({ length: 2 - customHeroCards.length }).map((_, i) => (
+                      <div 
+                        key={`empty-${i}`} 
+                        className="w-10 h-14 rounded-md border-2 border-dashed border-[hsl(220,15%,25%)] flex items-center justify-center"
+                      >
+                        <span className="text-xs text-muted-foreground">?</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Card grid */}
+                  {customHeroCards.length < 2 && (
+                    <div 
+                      className="grid gap-[2px] bg-[hsl(220,15%,12%)] p-1 rounded-lg" 
+                      style={{ gridTemplateColumns: 'repeat(13, 1fr)' }}
+                    >
+                      {suits.map(suit => (
+                        ranks.map(rank => {
+                          const used = isCardUsed(rank, suit);
+                          return (
+                            <button
+                              key={`${rank}${suit}`}
+                              onClick={() => !used && handleCardSelect({ rank, suit })}
+                              disabled={used}
+                              className={cn(
+                                "aspect-[3/4] flex flex-col items-center justify-center text-xs font-mono font-semibold rounded transition-all",
+                                used 
+                                  ? "bg-[hsl(220,15%,10%)] text-muted-foreground/30 cursor-not-allowed"
+                                  : "bg-white text-gray-900 hover:scale-105 hover:shadow-lg cursor-pointer",
+                                (suit === "hearts" || suit === "diamonds") && !used && "text-red-500"
+                              )}
+                            >
+                              <span className="text-[10px] leading-none">{rank}</span>
+                              <span className="text-[8px] leading-none">{suitSymbols[suit]}</span>
+                            </button>
+                          );
+                        })
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+
             {/* Hero position selector */}
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground hidden sm:inline">Herói:</span>
+              <span className="text-xs text-muted-foreground hidden sm:inline">Posição:</span>
               <select
                 value={heroPosition}
                 onChange={(e) => setHeroPosition(e.target.value)}
