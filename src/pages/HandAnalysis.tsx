@@ -1,15 +1,17 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { 
   Upload, Play, Pause, SkipBack, SkipForward, AlertTriangle, CheckCircle, 
   Info, ChevronRight, TrendingUp, Target, Brain, Users, DollarSign,
-  HelpCircle, Lightbulb, Eye, Zap, ChevronLeft, FileText, Trash2, Copy
+  HelpCircle, Lightbulb, Eye, Zap, ChevronLeft, FileText, Trash2, Sparkles
 } from "lucide-react";
 import { PokerCard } from "@/components/poker/PokerCard";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { parseHandHistory, generateSampleHand, type ParsedHand, type Street, type Action } from "@/lib/handHistoryParser";
+import { useHandAnalysisAI } from "@/hooks/useHandAnalysisAI";
+import { HandAnalysisAIPanel } from "@/components/hand-analysis/HandAnalysisAIPanel";
 import { toast } from "sonner";
 import {
   Tooltip,
@@ -86,6 +88,9 @@ export default function HandAnalysis() {
   const [currentActionIndex, setCurrentActionIndex] = useState(0);
   const [tableSize, setTableSize] = useState<6 | 8 | 9>(8);
   const isMobile = useIsMobile();
+  
+  // AI Analysis hook
+  const { analysis, isLoading: isAnalyzing, error: analysisError, analyzeHand, clearAnalysis } = useHandAnalysisAI();
 
   // Generate table players based on parsed hand or defaults
   const tablePlayers = useMemo((): TablePlayer[] => {
@@ -270,6 +275,31 @@ export default function HandAnalysis() {
   const potSize = parsedHand?.potSize || 245;
   const positionCoords = tableSize === 6 ? positionCoords6Max : tableSize === 8 ? positionCoords8Max : positionCoords9Max;
 
+  // Request AI analysis
+  const handleRequestAnalysis = useCallback(() => {
+    const villain = tablePlayers.find(p => !p.isHero && p.isActive);
+    analyzeHand({
+      heroCards: heroCards as { rank: string; suit: string }[],
+      boardCards: {
+        flop: boardCards.flop as { rank: string; suit: string }[],
+        turn: boardCards.turn as { rank: string; suit: string } | null,
+        river: boardCards.river as { rank: string; suit: string } | null,
+      },
+      heroPosition: parsedHand?.heroPosition || "BTN",
+      villainPosition: villain?.position || "BB",
+      currentStreet,
+      actions: actionHistory.map(a => ({
+        player: a.player,
+        action: a.action,
+        type: a.type,
+        street: a.street,
+      })),
+      potSize,
+      heroStack: parsedHand?.hero?.stack || 500,
+      villainStack: villain?.stack || 485,
+    });
+  }, [heroCards, boardCards, currentStreet, actionHistory, potSize, parsedHand, tablePlayers, analyzeHand]);
+
   const PlayerSeat = ({ player, coords }: { player: TablePlayer; coords: { top: string; left: string } }) => {
     const cardSize = isMobile ? "xs" : "sm";
     
@@ -392,11 +422,11 @@ Dealt to Hero [Ah Kd]
 
   const AnalysisSidebar = () => (
     <div className="space-y-4">
-      <Tabs defaultValue="gto" className="w-full">
+      <Tabs defaultValue="ai" className="w-full">
         <TabsList className="w-full bg-[hsl(220,15%,10%)] border border-[hsl(220,15%,15%)]">
-          <TabsTrigger value="gto" className="flex-1 text-xs data-[state=active]:bg-primary">
-            <Brain className="w-3.5 h-3.5 mr-1.5" />
-            GTO
+          <TabsTrigger value="ai" className="flex-1 text-xs data-[state=active]:bg-primary">
+            <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+            IA
           </TabsTrigger>
           <TabsTrigger value="stats" className="flex-1 text-xs data-[state=active]:bg-primary">
             <TrendingUp className="w-3.5 h-3.5 mr-1.5" />
@@ -408,62 +438,17 @@ Dealt to Hero [Ah Kd]
           </TabsTrigger>
         </TabsList>
         
-        <TabsContent value="gto" className="mt-4 space-y-4">
-          <div className="rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)] p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
-                <Brain className="w-4 h-4 text-primary" />
-                Análise GTO
-              </h3>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button className="text-muted-foreground hover:text-foreground">
-                      <HelpCircle className="w-4 h-4" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left" className="max-w-64">
-                    <p className="text-xs">
-                      <span className="font-medium">GTO (Game Theory Optimal)</span> é a estratégia matematicamente perfeita.
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            
-            <div className="space-y-3">
-              <div className="p-3 rounded-lg bg-success/10 border border-success/20">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <CheckCircle className="w-4 h-4 text-success" />
-                  <span className="text-sm font-medium text-success">Jogada Ótima</span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Seu sizing de c-bet de <span className="text-success font-medium">60% do pote</span> é GTO ótimo nesta textura K72r.
-                </p>
-              </div>
+        <TabsContent value="ai" className="mt-4 space-y-4">
+          {/* AI Analysis Panel */}
+          <HandAnalysisAIPanel
+            analysis={analysis}
+            isLoading={isAnalyzing}
+            error={analysisError}
+            onRequestAnalysis={handleRequestAnalysis}
+            canAnalyze={heroCards.length >= 2}
+          />
 
-              <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <AlertTriangle className="w-4 h-4 text-warning" />
-                  <span className="text-sm font-medium text-warning">Oportunidade</span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Contra jogadores com alto <span className="text-warning font-medium">Fold to C-Bet</span>, aumente frequência de blefes.
-                </p>
-              </div>
-
-              <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Lightbulb className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium text-primary">Dica para Iniciantes</span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Você tem <span className="text-primary font-medium">top pair top kicker</span>. Continue apostando por valor!
-                </p>
-              </div>
-            </div>
-          </div>
-
+          {/* Hand Strength Meter */}
           <div className="rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)] p-4">
             <h3 className="font-semibold text-foreground text-sm flex items-center gap-2 mb-4">
               <Target className="w-4 h-4 text-gold" />
