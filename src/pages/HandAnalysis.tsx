@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { 
   Upload, Play, Pause, SkipBack, SkipForward, AlertTriangle, CheckCircle, 
   Info, ChevronRight, TrendingUp, Target, Brain, Users, DollarSign,
-  HelpCircle, Lightbulb, Eye, Zap, ChevronLeft
+  HelpCircle, Lightbulb, Eye, Zap, ChevronLeft, FileText, Trash2, Copy
 } from "lucide-react";
 import { PokerCard } from "@/components/poker/PokerCard";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { parseHandHistory, generateSampleHand, type ParsedHand, type Street, type Action } from "@/lib/handHistoryParser";
+import { toast } from "sonner";
 import {
   Tooltip,
   TooltipContent,
@@ -28,39 +30,80 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export default function HandAnalysis() {
   const [handHistory, setHandHistory] = useState("");
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentStreet, setCurrentStreet] = useState<"preflop" | "flop" | "turn" | "river">("flop");
-  const [showImportSheet, setShowImportSheet] = useState(false);
+  const [currentStreet, setCurrentStreet] = useState<Street>("flop");
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [parsedHand, setParsedHand] = useState<ParsedHand | null>(() => generateSampleHand());
+  const [currentActionIndex, setCurrentActionIndex] = useState(0);
   const isMobile = useIsMobile();
 
-  const heroCards = [
-    { rank: "A" as const, suit: "spades" as const },
-    { rank: "K" as const, suit: "hearts" as const }
-  ];
+  // Get cards based on parsed hand or defaults
+  const heroCards = useMemo(() => {
+    if (parsedHand?.heroCards && parsedHand.heroCards.length >= 2) {
+      return parsedHand.heroCards;
+    }
+    return [
+      { rank: "A" as const, suit: "spades" as const },
+      { rank: "K" as const, suit: "hearts" as const }
+    ];
+  }, [parsedHand]);
   
-  const boardCards = {
-    flop: [
-      { rank: "K" as const, suit: "diamonds" as const },
-      { rank: "7" as const, suit: "clubs" as const },
-      { rank: "2" as const, suit: "spades" as const }
-    ],
-    turn: { rank: "Q" as const, suit: "hearts" as const },
-    river: { rank: "3" as const, suit: "diamonds" as const }
-  };
+  const boardCards = useMemo(() => {
+    if (parsedHand?.communityCards) {
+      return parsedHand.communityCards;
+    }
+    return {
+      flop: [
+        { rank: "K" as const, suit: "diamonds" as const },
+        { rank: "7" as const, suit: "clubs" as const },
+        { rank: "2" as const, suit: "spades" as const }
+      ],
+      turn: { rank: "Q" as const, suit: "hearts" as const },
+      river: { rank: "3" as const, suit: "diamonds" as const }
+    };
+  }, [parsedHand]);
 
-  const actionHistory = [
-    { player: "Vilão (BB)", action: "Raise para R$ 6", street: "preflop", type: "raise" },
-    { player: "Herói (BTN)", action: "3-Bet para R$ 18", street: "preflop", type: "raise" },
-    { player: "Vilão (BB)", action: "Call R$ 12", street: "preflop", type: "call" },
-    { player: "Vilão (BB)", action: "Check", street: "flop", type: "check" },
-    { player: "Herói (BTN)", action: "Aposta R$ 22 (60% pote)", street: "flop", type: "bet" },
-    { player: "Vilão (BB)", action: "Call R$ 22", street: "flop", type: "call" },
-    { player: "Vilão (BB)", action: "Check", street: "turn", type: "check" },
-    { player: "Herói (BTN)", action: "Aposta R$ 45 (55% pote)", street: "turn", type: "bet" },
-  ];
+  const actionHistory = useMemo(() => {
+    if (parsedHand?.actions && parsedHand.actions.length > 0) {
+      return parsedHand.actions.map(action => ({
+        player: action.isHero ? `Herói (${parsedHand.heroPosition})` : action.player,
+        action: formatAction(action),
+        street: action.street,
+        type: action.action,
+      }));
+    }
+    return [
+      { player: "Vilão (BB)", action: "Raise para R$ 6", street: "preflop" as Street, type: "raise" },
+      { player: "Herói (BTN)", action: "3-Bet para R$ 18", street: "preflop" as Street, type: "raise" },
+      { player: "Vilão (BB)", action: "Call R$ 12", street: "preflop" as Street, type: "call" },
+      { player: "Vilão (BB)", action: "Check", street: "flop" as Street, type: "check" },
+      { player: "Herói (BTN)", action: "Aposta R$ 22 (60% pote)", street: "flop" as Street, type: "bet" },
+      { player: "Vilão (BB)", action: "Call R$ 22", street: "flop" as Street, type: "call" },
+    ];
+  }, [parsedHand]);
+
+  function formatAction(action: Action): string {
+    const amount = action.amount ? `R$ ${action.amount.toFixed(0)}` : "";
+    switch (action.action) {
+      case "fold": return "Fold";
+      case "check": return "Check";
+      case "call": return `Call ${amount}`;
+      case "bet": return `Aposta ${amount}`;
+      case "raise": return `Raise para ${amount}`;
+      case "all-in": return `All-in ${amount}`;
+      default: return action.action;
+    }
+  }
 
   const villainStats = [
     { label: "VPIP", value: "28%", tooltip: "Voluntarily Put In Pot - Frequência de entrada voluntária em potes" },
@@ -71,15 +114,12 @@ export default function HandAnalysis() {
     { label: "Fold p/ C-Bet", value: "45%", tooltip: "Frequência de fold quando enfrenta uma c-bet" },
   ];
 
-  const streetLabels = {
+  const streetLabels: Record<Street, string> = {
     preflop: "Pré-Flop",
     flop: "Flop",
     turn: "Turn",
     river: "River"
   };
-
-  // Filter actions by current street for highlight
-  const currentStreetActions = actionHistory.filter(a => a.street === currentStreet);
 
   const getActionColor = (type: string) => {
     switch (type) {
@@ -97,6 +137,68 @@ export default function HandAnalysis() {
     }
   };
 
+  const handleProcessHand = () => {
+    const parsed = parseHandHistory(handHistory);
+    if (parsed) {
+      setParsedHand(parsed);
+      setCurrentStreet("preflop");
+      setCurrentActionIndex(0);
+      setShowImportDialog(false);
+      setHandHistory("");
+      toast.success("Mão importada com sucesso!", {
+        description: `${parsed.site} - Hand #${parsed.handId}`,
+      });
+    } else {
+      toast.error("Erro ao processar histórico", {
+        description: "Verifique se o formato está correto e tente novamente.",
+      });
+    }
+  };
+
+  const handleLoadSample = () => {
+    setParsedHand(generateSampleHand());
+    setCurrentStreet("flop");
+    setCurrentActionIndex(0);
+    setShowImportDialog(false);
+    toast.success("Mão de exemplo carregada!");
+  };
+
+  const handleClearHand = () => {
+    setParsedHand(null);
+    setCurrentStreet("preflop");
+    setCurrentActionIndex(0);
+    toast.info("Mão removida");
+  };
+
+  const handleNextAction = () => {
+    if (currentActionIndex < actionHistory.length - 1) {
+      const nextIndex = currentActionIndex + 1;
+      setCurrentActionIndex(nextIndex);
+      setCurrentStreet(actionHistory[nextIndex].street);
+    }
+  };
+
+  const handlePrevAction = () => {
+    if (currentActionIndex > 0) {
+      const prevIndex = currentActionIndex - 1;
+      setCurrentActionIndex(prevIndex);
+      setCurrentStreet(actionHistory[prevIndex].street);
+    }
+  };
+
+  const handleFirstAction = () => {
+    setCurrentActionIndex(0);
+    setCurrentStreet(actionHistory[0]?.street || "preflop");
+  };
+
+  const handleLastAction = () => {
+    const lastIndex = actionHistory.length - 1;
+    setCurrentActionIndex(lastIndex);
+    setCurrentStreet(actionHistory[lastIndex]?.street || "river");
+  };
+
+  const potSize = parsedHand?.potSize || 245;
+
   const ImportPanel = () => (
     <div className="space-y-4">
       {/* Educational Banner */}
@@ -105,25 +207,44 @@ export default function HandAnalysis() {
           <Lightbulb className="w-4 h-4 text-primary mt-0.5 shrink-0" />
           <div className="text-xs text-muted-foreground">
             <span className="font-medium text-primary block mb-1">Como importar mãos</span>
-            Copie o histórico completo da mão do seu cliente de poker (PokerStars, 888poker, etc.) e cole aqui para análise detalhada.
+            Copie o histórico completo da mão do seu cliente de poker e cole aqui. O sistema detectará automaticamente o formato.
           </div>
         </div>
       </div>
       
       <Textarea
-        placeholder="Cole o histórico da mão aqui...&#10;&#10;Exemplo:&#10;PokerStars Hand #123456789:...&#10;Table 'Mesa 1' 6-max Seat #1..."
+        placeholder={`Cole o histórico da mão aqui...
+
+Exemplo PokerStars:
+PokerStars Hand #123456789:  Hold'em No Limit ($0.50/$1.00)
+Table 'Mesa 1' 6-max Seat #1 is the button
+Seat 1: Hero ($100 in chips)
+Dealt to Hero [Ah Kd]
+...`}
         value={handHistory}
         onChange={(e) => setHandHistory(e.target.value)}
-        className="min-h-32 bg-[hsl(220,15%,10%)] border-[hsl(220,15%,18%)] font-mono text-xs resize-none placeholder:text-muted-foreground/50"
+        className="min-h-40 bg-[hsl(220,15%,10%)] border-[hsl(220,15%,18%)] font-mono text-xs resize-none placeholder:text-muted-foreground/50"
       />
-      <Button 
-        variant="gold" 
-        className="w-full"
-        disabled={!handHistory.trim()}
-      >
-        <Upload className="w-4 h-4 mr-2" />
-        Processar Mão
-      </Button>
+      
+      <div className="flex gap-2">
+        <Button 
+          variant="gold" 
+          className="flex-1"
+          disabled={!handHistory.trim()}
+          onClick={handleProcessHand}
+        >
+          <Upload className="w-4 h-4 mr-2" />
+          Processar Mão
+        </Button>
+        <Button 
+          variant="outline" 
+          className="border-[hsl(220,15%,20%)]"
+          onClick={handleLoadSample}
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          Carregar Exemplo
+        </Button>
+      </div>
       
       {/* Format Examples */}
       <div className="p-3 rounded-lg bg-[hsl(220,15%,10%)] border border-[hsl(220,15%,15%)]">
@@ -132,12 +253,49 @@ export default function HandAnalysis() {
           Formatos Suportados
         </p>
         <div className="flex flex-wrap gap-2">
-          {["PokerStars", "888poker", "PartyPoker", "GGPoker"].map((format) => (
+          {["PokerStars", "888poker", "PartyPoker", "GGPoker", "Winamax"].map((format) => (
             <span key={format} className="px-2 py-1 text-[10px] rounded bg-[hsl(220,15%,15%)] text-muted-foreground">
               {format}
             </span>
           ))}
         </div>
+      </div>
+
+      {/* Sample format */}
+      <div className="p-3 rounded-lg bg-[hsl(220,15%,10%)] border border-[hsl(220,15%,15%)]">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
+            <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+            Exemplo de Formato
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 text-[10px]"
+            onClick={() => {
+              navigator.clipboard.writeText(`PokerStars Hand #123456789:  Hold'em No Limit ($0.50/$1.00)
+Table 'Mesa 1' 6-max Seat #1 is the button
+Seat 1: Hero ($100 in chips)
+Seat 2: Villain ($98 in chips)
+Dealt to Hero [Ah Kd]
+Villain: raises $3 to $4
+Hero: raises $12 to $16
+Villain: calls $12
+*** FLOP *** [Ks 7c 2d]
+Villain: checks
+Hero: bets $22
+Villain: calls $22`);
+              toast.success("Exemplo copiado!");
+            }}
+          >
+            Copiar
+          </Button>
+        </div>
+        <pre className="text-[10px] text-muted-foreground font-mono whitespace-pre-wrap leading-relaxed">
+{`PokerStars Hand #123...
+Dealt to Hero [Ah Kd]
+*** FLOP *** [Ks 7c 2d]`}
+        </pre>
       </div>
     </div>
   );
@@ -177,7 +335,7 @@ export default function HandAnalysis() {
                   </TooltipTrigger>
                   <TooltipContent side="left" className="max-w-64">
                     <p className="text-xs">
-                      <span className="font-medium">GTO (Game Theory Optimal)</span> é a estratégia matematicamente perfeita que não pode ser explorada. Esta análise compara suas jogadas com o padrão GTO.
+                      <span className="font-medium">GTO (Game Theory Optimal)</span> é a estratégia matematicamente perfeita que não pode ser explorada.
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -191,7 +349,7 @@ export default function HandAnalysis() {
                   <span className="text-sm font-medium text-success">Jogada Ótima</span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Seu sizing de c-bet de <span className="text-success font-medium">60% do pote</span> é GTO ótimo nesta textura K72r. Boards secos favorecem c-bets maiores.
+                  Seu sizing de c-bet de <span className="text-success font-medium">60% do pote</span> é GTO ótimo nesta textura K72r.
                 </p>
               </div>
 
@@ -201,7 +359,7 @@ export default function HandAnalysis() {
                   <span className="text-sm font-medium text-warning">Oportunidade</span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Contra jogadores com alto <span className="text-warning font-medium">Fold to C-Bet (45%)</span>, considere aumentar frequência de blefes com backdoor draws.
+                  Contra jogadores com alto <span className="text-warning font-medium">Fold to C-Bet</span>, aumente frequência de blefes.
                 </p>
               </div>
 
@@ -211,7 +369,7 @@ export default function HandAnalysis() {
                   <span className="text-sm font-medium text-primary">Dica para Iniciantes</span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Você tem <span className="text-primary font-medium">top pair top kicker (TPTK)</span>. Esta é uma das melhores mãos feitas possíveis neste board. Continue apostando por valor!
+                  Você tem <span className="text-primary font-medium">top pair top kicker</span>. Continue apostando por valor!
                 </p>
               </div>
             </div>
@@ -247,7 +405,6 @@ export default function HandAnalysis() {
         </TabsContent>
         
         <TabsContent value="stats" className="mt-4">
-          {/* Villain HUD */}
           <div className="rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)] p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
@@ -277,14 +434,13 @@ export default function HandAnalysis() {
               </div>
             </TooltipProvider>
 
-            {/* Player Type */}
             <div className="mt-4 p-3 rounded-lg bg-primary/10 border border-primary/20">
               <div className="flex items-center gap-2 mb-1">
                 <Eye className="w-4 h-4 text-primary" />
                 <span className="text-xs font-medium text-primary">Perfil Identificado</span>
               </div>
               <p className="text-xs text-muted-foreground">
-                <span className="text-foreground font-medium">TAG (Tight-Aggressive)</span> - Joga poucos potes mas aposta agressivamente. Cuidado com suas apostas.
+                <span className="text-foreground font-medium">TAG (Tight-Aggressive)</span> - Joga poucos potes mas aposta agressivamente.
               </p>
             </div>
           </div>
@@ -310,35 +466,44 @@ export default function HandAnalysis() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 className="text-xl lg:text-2xl font-bold text-foreground">Análise de Mãos</h1>
-            <p className="text-xs lg:text-sm text-muted-foreground">Importe e revise mãos com análise GTO detalhada</p>
+            <p className="text-xs lg:text-sm text-muted-foreground">
+              {parsedHand?.site !== "Demo" && parsedHand?.handId 
+                ? `${parsedHand.site} - Hand #${parsedHand.handId}` 
+                : "Importe e revise mãos com análise GTO detalhada"}
+            </p>
           </div>
           
-          {isMobile ? (
-            <Sheet open={showImportSheet} onOpenChange={setShowImportSheet}>
-              <SheetTrigger asChild>
+          <div className="flex gap-2">
+            {parsedHand && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                onClick={handleClearHand}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Limpar</span>
+              </Button>
+            )}
+            
+            <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+              <DialogTrigger asChild>
                 <Button variant="gold" size="sm" className="w-full sm:w-auto">
                   <Upload className="w-4 h-4 mr-2" />
                   Importar Histórico
                 </Button>
-              </SheetTrigger>
-              <SheetContent side="bottom" className="h-[80vh] bg-[hsl(220,18%,8%)] border-[hsl(220,15%,15%)]">
-                <SheetHeader>
-                  <SheetTitle className="text-foreground">Importar Mão</SheetTitle>
-                </SheetHeader>
-                <div className="mt-4 overflow-y-auto">
-                  <ImportPanel />
-                </div>
-              </SheetContent>
-            </Sheet>
-          ) : (
-            <Button variant="gold" size="sm">
-              <Upload className="w-4 h-4 mr-2" />
-              Importar Histórico
-            </Button>
-          )}
+              </DialogTrigger>
+              <DialogContent className="bg-[hsl(220,18%,8%)] border-[hsl(220,15%,15%)] max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="text-foreground">Importar Mão</DialogTitle>
+                </DialogHeader>
+                <ImportPanel />
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
-        {/* Educational Info for Beginners */}
+        {/* Educational Info */}
         <div className="p-3 lg:p-4 rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20">
           <div className="flex items-start gap-3">
             <div className="p-2 rounded-lg bg-primary/20 shrink-0">
@@ -348,7 +513,7 @@ export default function HandAnalysis() {
               <h3 className="text-sm font-medium text-foreground mb-1">O que é o Hand Replayer?</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Reveja suas mãos jogada por jogada e descubra onde você poderia ter tomado decisões melhores. 
-                A análise GTO mostra a jogada matematicamente correta em cada situação.
+                Use os controles abaixo para navegar entre as ações.
               </p>
             </div>
           </div>
@@ -378,19 +543,22 @@ export default function HandAnalysis() {
                   <p className={cn(
                     "font-mono font-bold text-gold",
                     isMobile ? "text-lg" : "text-2xl"
-                  )}>R$ 245,00</p>
+                  )}>R$ {potSize.toFixed(2).replace(".", ",")}</p>
                 </div>
 
                 {/* Board cards */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1 sm:gap-2">
-                  {boardCards.flop.map((card, i) => (
+                  {currentStreet !== "preflop" && boardCards.flop.map((card, i) => (
                     <PokerCard key={i} rank={card.rank} suit={card.suit} size={isMobile ? "sm" : "md"} />
                   ))}
-                  {(currentStreet === "turn" || currentStreet === "river") && (
+                  {(currentStreet === "turn" || currentStreet === "river") && boardCards.turn && (
                     <PokerCard rank={boardCards.turn.rank} suit={boardCards.turn.suit} size={isMobile ? "sm" : "md"} />
                   )}
-                  {currentStreet === "river" && (
+                  {currentStreet === "river" && boardCards.river && (
                     <PokerCard rank={boardCards.river.rank} suit={boardCards.river.suit} size={isMobile ? "sm" : "md"} />
+                  )}
+                  {currentStreet === "preflop" && (
+                    <div className="text-white/40 text-sm font-medium">Pré-Flop</div>
                   )}
                 </div>
 
@@ -408,7 +576,7 @@ export default function HandAnalysis() {
                     "px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-primary text-primary-foreground font-medium",
                     isMobile ? "text-[10px]" : "text-xs"
                   )}>
-                    Herói (BTN) • R$ 500
+                    Herói ({parsedHand?.heroPosition || "BTN"}) • R$ {parsedHand?.hero?.stack || 500}
                   </div>
                 </div>
 
@@ -440,14 +608,43 @@ export default function HandAnalysis() {
                     isMobile ? "text-base" : "text-xl"
                   )}>78.4%</p>
                 </div>
+
+                {/* Action indicator */}
+                {actionHistory[currentActionIndex] && (
+                  <div className={cn(
+                    "absolute bg-[hsl(220,18%,10%)]/90 backdrop-blur-sm rounded-lg border border-[hsl(220,15%,18%)]",
+                    isMobile ? "bottom-2 left-2 p-2" : "bottom-4 left-4 p-3"
+                  )}>
+                    <p className="text-[9px] lg:text-[10px] text-muted-foreground uppercase tracking-wider">Ação Atual</p>
+                    <p className={cn(
+                      "font-mono font-medium",
+                      isMobile ? "text-xs" : "text-sm",
+                      getActionColor(actionHistory[currentActionIndex].type)
+                    )}>
+                      {actionHistory[currentActionIndex].action}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Playback controls */}
               <div className="flex items-center justify-center gap-2 sm:gap-4 py-3 sm:py-4 bg-[hsl(220,15%,8%)] border-t border-[hsl(220,15%,15%)]">
-                <Button variant="ghost" size="icon" className="hover:bg-[hsl(220,15%,15%)] h-8 w-8 sm:h-10 sm:w-10">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="hover:bg-[hsl(220,15%,15%)] h-8 w-8 sm:h-10 sm:w-10"
+                  onClick={handleFirstAction}
+                  disabled={currentActionIndex === 0}
+                >
                   <SkipBack className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="hover:bg-[hsl(220,15%,15%)] h-8 w-8 sm:h-10 sm:w-10">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="hover:bg-[hsl(220,15%,15%)] h-8 w-8 sm:h-10 sm:w-10"
+                  onClick={handlePrevAction}
+                  disabled={currentActionIndex === 0}
+                >
                   <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Button>
                 <Button 
@@ -458,10 +655,22 @@ export default function HandAnalysis() {
                 >
                   {isPlaying ? <Pause className="w-5 h-5 sm:w-6 sm:h-6" /> : <Play className="w-5 h-5 sm:w-6 sm:h-6 ml-0.5" />}
                 </Button>
-                <Button variant="ghost" size="icon" className="hover:bg-[hsl(220,15%,15%)] h-8 w-8 sm:h-10 sm:w-10">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="hover:bg-[hsl(220,15%,15%)] h-8 w-8 sm:h-10 sm:w-10"
+                  onClick={handleNextAction}
+                  disabled={currentActionIndex >= actionHistory.length - 1}
+                >
                   <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="hover:bg-[hsl(220,15%,15%)] h-8 w-8 sm:h-10 sm:w-10">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="hover:bg-[hsl(220,15%,15%)] h-8 w-8 sm:h-10 sm:w-10"
+                  onClick={handleLastAction}
+                  disabled={currentActionIndex >= actionHistory.length - 1}
+                >
                   <SkipForward className="w-4 h-4 sm:w-5 sm:h-5" />
                 </Button>
               </div>
@@ -494,30 +703,36 @@ export default function HandAnalysis() {
                   Histórico de Ações
                 </h3>
                 <span className="text-[10px] text-muted-foreground px-2 py-1 bg-[hsl(220,15%,12%)] rounded-full">
-                  {streetLabels[currentStreet]}
+                  {currentActionIndex + 1}/{actionHistory.length}
                 </span>
               </div>
               
-              <div className="space-y-1">
+              <div className="space-y-1 max-h-48 overflow-y-auto">
                 {actionHistory.map((action, i) => (
-                  <div 
+                  <button 
                     key={i}
+                    onClick={() => {
+                      setCurrentActionIndex(i);
+                      setCurrentStreet(action.street);
+                    }}
                     className={cn(
-                      "flex items-center justify-between p-2 sm:p-2.5 rounded-lg text-xs sm:text-sm transition-all",
-                      action.street === currentStreet 
-                        ? "bg-primary/10 border border-primary/20" 
-                        : "hover:bg-[hsl(220,15%,10%)]"
+                      "w-full flex items-center justify-between p-2 sm:p-2.5 rounded-lg text-xs sm:text-sm transition-all text-left",
+                      i === currentActionIndex 
+                        ? "bg-primary/20 border border-primary/30" 
+                        : action.street === currentStreet
+                          ? "bg-primary/5 hover:bg-primary/10"
+                          : "hover:bg-[hsl(220,15%,10%)]"
                     )}
                   >
                     <div className="flex items-center gap-2">
                       <span className={cn(
-                        "w-1.5 h-1.5 rounded-full",
-                        action.street === currentStreet ? "bg-primary" : "bg-muted-foreground/30"
+                        "w-1.5 h-1.5 rounded-full shrink-0",
+                        i === currentActionIndex ? "bg-primary" : "bg-muted-foreground/30"
                       )} />
-                      <span className="text-muted-foreground">{action.player}</span>
+                      <span className="text-muted-foreground truncate">{action.player}</span>
                     </div>
-                    <span className={cn("font-mono", getActionColor(action.type))}>{action.action}</span>
-                  </div>
+                    <span className={cn("font-mono shrink-0", getActionColor(action.type))}>{action.action}</span>
+                  </button>
                 ))}
               </div>
               
@@ -525,19 +740,29 @@ export default function HandAnalysis() {
               <div className="mt-4 pt-4 border-t border-[hsl(220,15%,15%)]">
                 <div className="flex items-center justify-between text-xs mb-2">
                   <span className="text-muted-foreground">Progressão do Pote</span>
-                  <span className="font-mono text-gold">R$ 245,00</span>
+                  <span className="font-mono text-gold">R$ {potSize.toFixed(2).replace(".", ",")}</span>
                 </div>
                 <div className="flex gap-1">
-                  <div className="flex-1 h-2 rounded-full bg-primary/80" />
-                  <div className="flex-1 h-2 rounded-full bg-success/80" />
-                  <div className="flex-1 h-2 rounded-full bg-[hsl(220,15%,20%)]" />
-                  <div className="flex-1 h-2 rounded-full bg-[hsl(220,15%,15%)]" />
+                  {(["preflop", "flop", "turn", "river"] as const).map((street) => (
+                    <div 
+                      key={street}
+                      className={cn(
+                        "flex-1 h-2 rounded-full transition-colors",
+                        currentStreet === street 
+                          ? "bg-primary" 
+                          : (["preflop", "flop", "turn", "river"].indexOf(street) <= ["preflop", "flop", "turn", "river"].indexOf(currentStreet))
+                            ? "bg-success/80"
+                            : "bg-[hsl(220,15%,15%)]"
+                      )}
+                    />
+                  ))}
                 </div>
                 <div className="flex justify-between text-[10px] text-muted-foreground mt-1.5">
-                  <span>Pré-Flop</span>
-                  <span>Flop</span>
-                  <span>Turn</span>
-                  <span>River</span>
+                  {(["preflop", "flop", "turn", "river"] as const).map((street) => (
+                    <span key={street} className={cn(currentStreet === street && "text-primary font-medium")}>
+                      {streetLabels[street]}
+                    </span>
+                  ))}
                 </div>
               </div>
             </div>
