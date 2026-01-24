@@ -8,8 +8,10 @@ import {
   isoRaiseRanges,
   vs3BetRanges,
   fourBetRanges,
-  bbDefenseRanges
-} from "@/data/rangeData";
+  bbDefenseRanges,
+  calculateRangeStats,
+  getScenarioInfo
+} from "@/data/gtoRanges";
 import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown, Target, Zap, Shield, Users } from "lucide-react";
 
