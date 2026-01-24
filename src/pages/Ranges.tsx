@@ -464,9 +464,9 @@ export default function Ranges() {
           </div>
 
           {/* Right Sidebar - Hand Details + AI */}
-          <div className="w-72 shrink-0 space-y-3">
+          <div className="w-72 shrink-0 flex flex-col gap-3 max-h-[calc(100vh-120px)] overflow-y-auto">
             {/* Hand Details Card */}
-            <div className="bg-[hsl(220,18%,9%)] rounded-lg border border-[hsl(220,15%,13%)] overflow-hidden sticky top-4">
+            <div className="bg-[hsl(220,18%,9%)] rounded-lg border border-[hsl(220,15%,13%)] overflow-hidden shrink-0">
               {selectedHand && selectedHandData ? (
                 <>
                   {/* Hand Header */}
@@ -507,7 +507,7 @@ export default function Ranges() {
                   </div>
 
                   {/* Stats */}
-                  <div className="p-4 space-y-4">
+                  <div className="p-4 space-y-3">
                     {/* Frequency */}
                     <div>
                       <div className="flex justify-between items-center mb-1.5">
@@ -551,46 +551,48 @@ export default function Ranges() {
                     )}
 
                     {/* Strategy Note */}
-                    <div className="pt-3 border-t border-[hsl(220,15%,13%)]">
-                      <div className="text-[9px] text-[hsl(142,70%,50%)] uppercase tracking-wider mb-1.5 font-medium">Nota Estratégica</div>
-                      <p className="text-[11px] text-[hsl(220,15%,60%)] leading-relaxed">
+                    <div className="pt-2 border-t border-[hsl(220,15%,13%)]">
+                      <div className="text-[9px] text-[hsl(142,70%,50%)] uppercase tracking-wider mb-1 font-medium">Nota Estratégica</div>
+                      <p className="text-[10px] text-[hsl(220,15%,60%)] leading-relaxed">
                         {selectedHandData.action === "raise" && 
-                          `${selectedHand} é uma mão forte para ${currentScenario?.label.toLowerCase()} na posição ${currentPos?.label}. Execute com sizing padrão.`
+                          `${selectedHand} é uma mão forte para ${currentScenario?.label.toLowerCase()} na posição ${currentPos?.label}.`
                         }
                         {selectedHandData.action === "fold" && 
-                          `${selectedHand} está fora do range balanceado de ${currentScenario?.label.toLowerCase()} na posição ${currentPos?.label}.`
+                          `${selectedHand} está fora do range balanceado de ${currentScenario?.label.toLowerCase()}.`
                         }
                         {selectedHandData.action === "call" && 
-                          `${selectedHand} deve ser usada como flatting hand nesta situação para manter balanço.`
+                          `${selectedHand} deve ser usada como flatting hand nesta situação.`
                         }
                       </p>
                     </div>
                   </div>
                 </>
               ) : (
-                <div className="p-8 text-center">
-                  <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[hsl(220,15%,12%)] flex items-center justify-center">
-                    <Target className="w-5 h-5 text-[hsl(220,15%,35%)]" />
+                <div className="p-6 text-center">
+                  <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-[hsl(220,15%,12%)] flex items-center justify-center">
+                    <Target className="w-4 h-4 text-[hsl(220,15%,35%)]" />
                   </div>
                   <p className="text-xs text-[hsl(220,15%,45%)]">
-                    Selecione uma mão da<br />matriz para ver detalhes
+                    Selecione uma mão da matriz
                   </p>
-                  <p className="text-[10px] text-muted-foreground mt-2">
-                    Use a análise IA para<br />explicações detalhadas
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Use a análise IA para explicações
                   </p>
                 </div>
               )}
             </div>
 
-            {/* AI Analysis Panel */}
-            <RangeAIPanel
-              analysis={analysis}
-              isLoading={isLoading}
-              error={error}
-              onRequestAnalysis={handleRequestAnalysis}
-              canAnalyze={!!selectedHand && !!selectedHandData}
-              hand={selectedHand}
-            />
+            {/* AI Analysis Panel - with proper scroll */}
+            <div className="shrink-0">
+              <RangeAIPanel
+                analysis={analysis}
+                isLoading={isLoading}
+                error={error}
+                onRequestAnalysis={handleRequestAnalysis}
+                canAnalyze={!!selectedHand && !!selectedHandData}
+                hand={selectedHand}
+              />
+            </div>
           </div>
         </div>
       </div>
