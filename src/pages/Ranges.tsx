@@ -216,10 +216,10 @@ export default function Ranges() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-4">
-        <div className="flex gap-4">
+      <div className="max-w-7xl mx-auto px-4 py-4 h-[calc(100vh-80px)] overflow-y-auto">
+        <div className="flex gap-4 items-start">
           {/* Left Sidebar - Controls */}
-          <div className="w-60 shrink-0 space-y-3">
+          <div className="w-60 shrink-0 space-y-3 sticky top-4">
             {/* Quick Help Panel */}
             {showHelp && <QuickHelp />}
 
@@ -464,9 +464,9 @@ export default function Ranges() {
           </div>
 
           {/* Right Sidebar - Hand Details + AI */}
-          <div className="w-72 shrink-0 flex flex-col gap-3 max-h-[calc(100vh-120px)] overflow-y-auto">
+          <div className="w-72 shrink-0 flex flex-col gap-3 sticky top-4">
             {/* Hand Details Card */}
-            <div className="bg-[hsl(220,18%,9%)] rounded-lg border border-[hsl(220,15%,13%)] overflow-hidden shrink-0">
+            <div className="bg-[hsl(220,18%,9%)] rounded-lg border border-[hsl(220,15%,13%)] overflow-hidden">
               {selectedHand && selectedHandData ? (
                 <>
                   {/* Hand Header */}

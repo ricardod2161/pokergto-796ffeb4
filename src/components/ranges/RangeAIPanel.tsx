@@ -57,7 +57,7 @@ export function RangeAIPanel({
   };
 
   return (
-    <div className="rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)] overflow-hidden">
+    <div className="rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)] overflow-hidden max-h-[400px] overflow-y-auto">
       <div className="px-4 py-3 border-b border-[hsl(220,15%,13%)] flex items-center justify-between bg-gradient-to-r from-[hsl(220,18%,10%)] to-[hsl(260,30%,12%)]">
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20">
