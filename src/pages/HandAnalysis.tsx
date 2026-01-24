@@ -33,6 +33,18 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
+interface PlayerStats {
+  vpip: number;
+  pfr: number;
+  threeBet: number;
+  foldTo3Bet: number;
+  cbet: number;
+  foldToCbet: number;
+  aggression: number;
+  hands: number;
+  playerType: string;
+}
+
 interface TablePlayer {
   position: string;
   name: string;
@@ -42,6 +54,7 @@ interface TablePlayer {
   cards?: { rank: string; suit: string }[];
   currentBet?: number;
   hasFolded?: boolean;
+  stats?: PlayerStats;
 }
 
 // Position coordinates for 6-max table (percentages)
@@ -92,30 +105,49 @@ export default function HandAnalysis() {
   // AI Analysis hook
   const { analysis, isLoading: isAnalyzing, error: analysisError, analyzeHand, clearAnalysis } = useHandAnalysisAI();
 
+  // Generate player stats (simulated for demo)
+  const generatePlayerStats = (position: string, isHero: boolean): PlayerStats | undefined => {
+    if (isHero) return undefined; // Hero doesn't show HUD
+    
+    // Randomized but realistic stats based on player types
+    const playerProfiles: Record<string, PlayerStats> = {
+      "SB": { vpip: 32, pfr: 24, threeBet: 8, foldTo3Bet: 52, cbet: 68, foldToCbet: 42, aggression: 2.8, hands: 892, playerType: "LAG" },
+      "BB": { vpip: 28, pfr: 22, threeBet: 9, foldTo3Bet: 58, cbet: 72, foldToCbet: 45, aggression: 2.4, hands: 1247, playerType: "TAG" },
+      "UTG": { vpip: 18, pfr: 16, threeBet: 6, foldTo3Bet: 65, cbet: 75, foldToCbet: 38, aggression: 2.1, hands: 654, playerType: "NIT" },
+      "UTG+1": { vpip: 20, pfr: 17, threeBet: 7, foldTo3Bet: 62, cbet: 70, foldToCbet: 40, aggression: 2.2, hands: 423, playerType: "TAG" },
+      "MP": { vpip: 24, pfr: 20, threeBet: 8, foldTo3Bet: 55, cbet: 65, foldToCbet: 48, aggression: 2.5, hands: 789, playerType: "TAG" },
+      "MP+1": { vpip: 35, pfr: 12, threeBet: 4, foldTo3Bet: 70, cbet: 45, foldToCbet: 55, aggression: 1.5, hands: 312, playerType: "Fish" },
+      "HJ": { vpip: 26, pfr: 22, threeBet: 10, foldTo3Bet: 50, cbet: 78, foldToCbet: 35, aggression: 3.1, hands: 1089, playerType: "LAG" },
+      "CO": { vpip: 30, pfr: 25, threeBet: 11, foldTo3Bet: 48, cbet: 70, foldToCbet: 40, aggression: 2.9, hands: 567, playerType: "LAG" },
+    };
+    
+    return playerProfiles[position] || { vpip: 25, pfr: 20, threeBet: 8, foldTo3Bet: 55, cbet: 65, foldToCbet: 45, aggression: 2.3, hands: 500, playerType: "REG" };
+  };
+
   // Generate table players based on parsed hand or defaults
   const tablePlayers = useMemo((): TablePlayer[] => {
     // Demo players base (6-max)
     const demoPlayers: TablePlayer[] = [
       { position: "BTN", name: "Herói", stack: 500, isHero: true, isActive: true, cards: [{ rank: "A", suit: "spades" }, { rank: "K", suit: "hearts" }] },
-      { position: "SB", name: "Player2", stack: 485, isHero: false, isActive: true },
-      { position: "BB", name: "Vilão", stack: 520, isHero: false, isActive: true },
-      { position: "UTG", name: "Player4", stack: 450, isHero: false, isActive: false, hasFolded: true },
-      { position: "MP", name: "Player5", stack: 380, isHero: false, isActive: false, hasFolded: true },
-      { position: "CO", name: "Player6", stack: 610, isHero: false, isActive: false, hasFolded: true },
+      { position: "SB", name: "Player2", stack: 485, isHero: false, isActive: true, stats: generatePlayerStats("SB", false) },
+      { position: "BB", name: "Vilão", stack: 520, isHero: false, isActive: true, stats: generatePlayerStats("BB", false) },
+      { position: "UTG", name: "Player4", stack: 450, isHero: false, isActive: false, hasFolded: true, stats: generatePlayerStats("UTG", false) },
+      { position: "MP", name: "Player5", stack: 380, isHero: false, isActive: false, hasFolded: true, stats: generatePlayerStats("MP", false) },
+      { position: "CO", name: "Player6", stack: 610, isHero: false, isActive: false, hasFolded: true, stats: generatePlayerStats("CO", false) },
     ];
 
     if (tableSize === 8) {
       demoPlayers.push(
-        { position: "UTG+1", name: "Player7", stack: 420, isHero: false, isActive: false, hasFolded: true },
-        { position: "HJ", name: "Player8", stack: 550, isHero: false, isActive: false, hasFolded: true },
+        { position: "UTG+1", name: "Player7", stack: 420, isHero: false, isActive: false, hasFolded: true, stats: generatePlayerStats("UTG+1", false) },
+        { position: "HJ", name: "Player8", stack: 550, isHero: false, isActive: false, hasFolded: true, stats: generatePlayerStats("HJ", false) },
       );
     }
 
     if (tableSize === 9) {
       demoPlayers.push(
-        { position: "UTG+1", name: "Player7", stack: 420, isHero: false, isActive: false, hasFolded: true },
-        { position: "MP+1", name: "Player8", stack: 390, isHero: false, isActive: false, hasFolded: true },
-        { position: "HJ", name: "Player9", stack: 550, isHero: false, isActive: false, hasFolded: true },
+        { position: "UTG+1", name: "Player7", stack: 420, isHero: false, isActive: false, hasFolded: true, stats: generatePlayerStats("UTG+1", false) },
+        { position: "MP+1", name: "Player8", stack: 390, isHero: false, isActive: false, hasFolded: true, stats: generatePlayerStats("MP+1", false) },
+        { position: "HJ", name: "Player9", stack: 550, isHero: false, isActive: false, hasFolded: true, stats: generatePlayerStats("HJ", false) },
       );
     }
 
@@ -300,13 +332,45 @@ export default function HandAnalysis() {
     });
   }, [heroCards, boardCards, currentStreet, actionHistory, potSize, parsedHand, tablePlayers, analyzeHand]);
 
+  // Get player type color
+  const getPlayerTypeColor = (type: string) => {
+    switch (type) {
+      case "NIT": return "text-blue-400";
+      case "TAG": return "text-success";
+      case "LAG": return "text-warning";
+      case "Fish": return "text-destructive";
+      default: return "text-muted-foreground";
+    }
+  };
+
+  // Get stat color based on value
+  const getStatColor = (stat: string, value: number) => {
+    if (stat === "vpip") {
+      if (value < 20) return "text-blue-400"; // Tight
+      if (value < 30) return "text-success"; // Normal
+      return "text-warning"; // Loose
+    }
+    if (stat === "pfr") {
+      if (value < 15) return "text-blue-400";
+      if (value < 25) return "text-success";
+      return "text-warning";
+    }
+    if (stat === "threeBet") {
+      if (value < 6) return "text-blue-400";
+      if (value < 10) return "text-success";
+      return "text-warning";
+    }
+    return "text-foreground";
+  };
+
   const PlayerSeat = ({ player, coords }: { player: TablePlayer; coords: { top: string; left: string } }) => {
     const cardSize = isMobile ? "xs" : "sm";
+    const stats = player.stats;
     
-    return (
+    const seatContent = (
       <div 
         className={cn(
-          "absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 transition-all duration-300",
+          "absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 transition-all duration-300 group",
           player.hasFolded && "opacity-40"
         )}
         style={{ top: coords.top, left: coords.left }}
@@ -333,12 +397,12 @@ export default function HandAnalysis() {
         
         {/* Player info badge */}
         <div className={cn(
-          "px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-center min-w-[50px] sm:min-w-[70px] transition-all",
+          "px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-center min-w-[50px] sm:min-w-[70px] transition-all cursor-pointer",
           player.isHero 
             ? "bg-primary text-primary-foreground" 
             : player.isActive 
-              ? "bg-[hsl(220,15%,20%)] text-foreground border border-[hsl(220,15%,30%)]"
-              : "bg-[hsl(220,15%,15%)] text-muted-foreground",
+              ? "bg-[hsl(220,15%,20%)] text-foreground border border-[hsl(220,15%,30%)] hover:border-primary/50"
+              : "bg-[hsl(220,15%,15%)] text-muted-foreground hover:bg-[hsl(220,15%,18%)]",
           player.hasFolded && "line-through"
         )}>
           <p className={cn(
@@ -355,6 +419,88 @@ export default function HandAnalysis() {
           </p>
         </div>
       </div>
+    );
+
+    // If no stats (hero) or mobile, just return the seat
+    if (!stats || isMobile) {
+      return seatContent;
+    }
+
+    // With HUD tooltip for non-hero players
+    return (
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {seatContent}
+          </TooltipTrigger>
+          <TooltipContent 
+            side="top" 
+            className="p-0 bg-[hsl(220,18%,10%)] border-[hsl(220,15%,20%)] shadow-xl w-[200px]"
+            sideOffset={8}
+          >
+            {/* HUD Header */}
+            <div className="px-3 py-2 border-b border-[hsl(220,15%,18%)] bg-[hsl(220,15%,8%)]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-foreground">{player.name}</span>
+                <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded", getPlayerTypeColor(stats.playerType))}>
+                  {stats.playerType}
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground">{stats.hands} mãos</p>
+            </div>
+
+            {/* Main Stats Grid */}
+            <div className="p-2 space-y-2">
+              {/* VPIP / PFR / 3-Bet Row */}
+              <div className="grid grid-cols-3 gap-1.5">
+                <div className="text-center p-1.5 rounded bg-[hsl(220,15%,12%)]">
+                  <p className={cn("text-sm font-mono font-bold", getStatColor("vpip", stats.vpip))}>{stats.vpip}%</p>
+                  <p className="text-[9px] text-muted-foreground">VPIP</p>
+                </div>
+                <div className="text-center p-1.5 rounded bg-[hsl(220,15%,12%)]">
+                  <p className={cn("text-sm font-mono font-bold", getStatColor("pfr", stats.pfr))}>{stats.pfr}%</p>
+                  <p className="text-[9px] text-muted-foreground">PFR</p>
+                </div>
+                <div className="text-center p-1.5 rounded bg-[hsl(220,15%,12%)]">
+                  <p className={cn("text-sm font-mono font-bold", getStatColor("threeBet", stats.threeBet))}>{stats.threeBet}%</p>
+                  <p className="text-[9px] text-muted-foreground">3-Bet</p>
+                </div>
+              </div>
+
+              {/* Additional Stats */}
+              <div className="grid grid-cols-2 gap-1.5">
+                <div className="flex justify-between items-center px-2 py-1 rounded bg-[hsl(220,15%,12%)]">
+                  <span className="text-[9px] text-muted-foreground">Fold 3-Bet</span>
+                  <span className="text-xs font-mono text-foreground">{stats.foldTo3Bet}%</span>
+                </div>
+                <div className="flex justify-between items-center px-2 py-1 rounded bg-[hsl(220,15%,12%)]">
+                  <span className="text-[9px] text-muted-foreground">C-Bet</span>
+                  <span className="text-xs font-mono text-foreground">{stats.cbet}%</span>
+                </div>
+                <div className="flex justify-between items-center px-2 py-1 rounded bg-[hsl(220,15%,12%)]">
+                  <span className="text-[9px] text-muted-foreground">Fold C-Bet</span>
+                  <span className="text-xs font-mono text-foreground">{stats.foldToCbet}%</span>
+                </div>
+                <div className="flex justify-between items-center px-2 py-1 rounded bg-[hsl(220,15%,12%)]">
+                  <span className="text-[9px] text-muted-foreground">AGG</span>
+                  <span className="text-xs font-mono text-foreground">{stats.aggression.toFixed(1)}</span>
+                </div>
+              </div>
+
+              {/* Quick Insight */}
+              <div className="p-2 rounded bg-primary/10 border border-primary/20">
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  {stats.playerType === "NIT" && "Joga muito tight. Respeite seus raises, mas roube seus blinds."}
+                  {stats.playerType === "TAG" && "Jogador sólido. Cuidado com value bets, mas pode ser blefado."}
+                  {stats.playerType === "LAG" && "Agressivo e wide. 3-Bet mais para valor e trap com mãos fortes."}
+                  {stats.playerType === "Fish" && "Jogador fraco. Value bet thin e evite blefes elaborados."}
+                  {stats.playerType === "REG" && "Regular equilibrado. Jogue GTO e evite lines exploitáveis."}
+                </p>
+              </div>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   };
 
