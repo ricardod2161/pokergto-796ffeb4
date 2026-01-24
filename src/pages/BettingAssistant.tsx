@@ -8,6 +8,8 @@ import { RecommendationPanel } from "@/components/betting/RecommendationPanel";
 import { MultiStreetPlan } from "@/components/betting/MultiStreetPlan";
 import { HandHistoryPanel, HandHistoryEntry } from "@/components/betting/HandHistoryPanel";
 import { GameContextForm } from "@/components/betting/GameContextForm";
+import { AIAnalysisPanel } from "@/components/betting/AIAnalysisPanel";
+import { useGTOAnalysis } from "@/hooks/useGTOAnalysis";
 import {
   analyzeBoardTexture,
   analyzeHand,
@@ -45,6 +47,9 @@ export default function BettingAssistant() {
   const [recommendation, setRecommendation] = useState<BettingRecommendation | null>(null);
   const [multiStreetPlan, setMultiStreetPlan] = useState<StreetPlan[]>([]);
   const [history, setHistory] = useState<HandHistoryEntry[]>([]);
+  
+  // AI Analysis hook
+  const { isAnalyzing, aiAnalysis, error: aiError, analyzeWithAI, clearAnalysis } = useGTOAnalysis();
 
   // Computed values
   const allUsedCards = useMemo(() => [...heroCards, ...boardCards], [heroCards, boardCards]);
@@ -132,7 +137,45 @@ export default function BettingAssistant() {
     setRecommendation(null);
     setMultiStreetPlan([]);
     setShowCardPicker(null);
-  }, []);
+    clearAnalysis();
+  }, [clearAnalysis]);
+
+  const handleRequestAIAnalysis = useCallback(() => {
+    if (!recommendation || heroCards.length < 2 || boardCards.length < 3) return;
+    
+    // Derive draws from hand analysis
+    const draws: string[] = [];
+    if (handAnalysis.hasFlushDraw) draws.push("Flush Draw");
+    if (handAnalysis.hasStraightDraw) draws.push("Straight Draw");
+    
+    analyzeWithAI({
+      heroCards,
+      boardCards,
+      potSize: parseFloat(potSize) || 45,
+      stackSize: parseFloat(stackSize) || 100,
+      position,
+      facingBet,
+      betSize: facingBet ? parseFloat(betSize) || undefined : undefined,
+      villainType,
+      street: currentStreet,
+      handStrength: handAnalysis.category,
+      draws,
+      boardTexture: {
+        wetness: boardTexture.wetness,
+        connectivity: boardTexture.connected ? "connected" : "disconnected",
+        pairing: boardTexture.paired ? "paired" : boardTexture.trips ? "trips" : "unpaired",
+      },
+      equity: handAnalysis.equity,
+      currentRecommendation: {
+        action: recommendation.primaryAction,
+        sizing: recommendation.sizing,
+        confidence: recommendation.confidence,
+      },
+    });
+  }, [
+    recommendation, heroCards, boardCards, potSize, stackSize, position,
+    facingBet, betSize, villainType, currentStreet, handAnalysis, boardTexture, analyzeWithAI
+  ]);
 
   const handleHistorySelect = useCallback((entry: HandHistoryEntry) => {
     setHeroCards(entry.heroCards);
@@ -248,6 +291,15 @@ export default function BettingAssistant() {
                 currentStreet={currentStreet}
               />
             )}
+
+            {/* AI Analysis */}
+            <AIAnalysisPanel
+              analysis={aiAnalysis}
+              isLoading={isAnalyzing}
+              error={aiError}
+              onRequestAnalysis={handleRequestAIAnalysis}
+              canAnalyze={!!recommendation && heroCards.length >= 2 && boardCards.length >= 3}
+            />
           </div>
 
           {/* Right Column - Analysis & History */}
