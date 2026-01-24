@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { RangeMatrix } from "@/components/poker/RangeMatrix";
 import { RangeAIPanel } from "@/components/ranges/RangeAIPanel";
 import { QuickHelp, EducationalTooltip, educationalContent } from "@/components/ranges/EducationalTooltips";
+import { ControlsContent, CollapsedControls } from "@/components/ranges/RangeControls";
 import { useRangeAnalysis } from "@/hooks/useRangeAnalysis";
 import { 
   openRanges, 
@@ -14,8 +15,10 @@ import {
   bbDefenseRanges,
 } from "@/data/gtoRanges";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Target, Zap, Shield, Users, HelpCircle, BookOpen, Info, Sparkles } from "lucide-react";
+import { TrendingUp, TrendingDown, Target, Zap, Shield, Users, HelpCircle, BookOpen, Info, Sparkles, Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const positions = [
   { id: "UTG", label: "UTG", color: "hsl(0, 70%, 45%)" },
@@ -84,6 +87,9 @@ export default function Ranges() {
   const [selectedHand, setSelectedHand] = useState<string | null>(null);
   const [selectedHandData, setSelectedHandData] = useState<HandData | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
+  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
+  const isMobile = useIsMobile();
 
   const { analysis, isLoading, error, analyzeHand, clearAnalysis } = useRangeAnalysis();
 
@@ -216,155 +222,121 @@ export default function Ranges() {
         </div>
       </div>
 
-      <div className="w-full px-4 py-4 h-[calc(100vh-80px)] overflow-y-auto">
-        <div className="max-w-[1600px] mx-auto flex gap-6 items-start">
-          {/* Left Sidebar - Controls */}
-          <div className="w-52 flex-shrink-0 space-y-3 sticky top-4">
-            {/* Quick Help Panel */}
-            {showHelp && <QuickHelp />}
-
-            {/* Scenario Selection */}
-            {scenarioCategories.map((category) => (
-              <div key={category.id} className="bg-[hsl(220,18%,9%)] rounded-lg border border-[hsl(220,15%,13%)] overflow-hidden">
-                <div className="px-3 py-2 border-b border-[hsl(220,15%,13%)] flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <category.icon className="w-3.5 h-3.5 text-[hsl(220,15%,45%)]" />
-                    <span className="text-[10px] font-medium text-[hsl(220,15%,50%)] uppercase tracking-wider">{category.label}</span>
-                  </div>
-                  <EducationalTooltip term={category.id === "offense" ? "raise" : "call"}>
-                    <Info className="w-3 h-3 text-[hsl(220,15%,35%)]" />
-                  </EducationalTooltip>
-                </div>
-                <div className="p-2 grid grid-cols-2 gap-1">
-                  {category.scenarios.map((scenario) => (
-                    <button
-                      key={scenario.id}
-                      onClick={() => {
-                        setSelectedScenario(scenario.id);
-                        setSelectedHand(null);
-                        setSelectedHandData(null);
-                      }}
-                      className={cn(
-                        "px-2 py-2 text-left rounded transition-all group relative",
-                        selectedScenario === scenario.id
-                          ? "bg-[hsl(142,70%,35%)] text-white"
-                          : "bg-[hsl(220,15%,12%)] text-[hsl(220,15%,55%)] hover:bg-[hsl(220,15%,15%)] hover:text-[hsl(220,15%,70%)]"
-                      )}
-                    >
-                      <div className="text-[10px] font-medium">{scenario.shortLabel}</div>
-                      <div className={cn(
-                        "text-[8px] mt-0.5",
-                        selectedScenario === scenario.id 
-                          ? "text-white/70" 
-                          : "text-[hsl(220,15%,40%)]"
-                      )}>
-                        {scenario.desc}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-
-            {/* Position Selection */}
-            <div className="bg-[hsl(220,18%,9%)] rounded-lg border border-[hsl(220,15%,13%)] overflow-hidden">
-              <div className="px-3 py-2 border-b border-[hsl(220,15%,13%)] flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Users className="w-3.5 h-3.5 text-[hsl(220,15%,45%)]" />
-                  <span className="text-[10px] font-medium text-[hsl(220,15%,50%)] uppercase tracking-wider">
-                    {selectedScenario === "bbdefense" ? "Oponente" : "Posição"}
-                  </span>
-                </div>
-                <EducationalTooltip term={effectivePosition as keyof typeof educationalContent}>
-                  <Info className="w-3 h-3 text-[hsl(220,15%,35%)]" />
-                </EducationalTooltip>
-              </div>
-              <div className="p-2">
-                {selectedScenario === "bbdefense" ? (
-                  <div className="grid grid-cols-2 gap-1">
-                    {bbDefensePositions.map((pos) => (
-                      <button
-                        key={pos.id}
-                        onClick={() => setSelectedPosition(pos.id)}
-                        className={cn(
-                          "px-2 py-1.5 text-[10px] font-medium rounded transition-all",
-                          effectivePosition === pos.id
-                            ? "bg-[hsl(210,70%,45%)] text-white"
-                            : "bg-[hsl(220,15%,12%)] text-[hsl(220,15%,55%)] hover:bg-[hsl(220,15%,15%)]"
-                        )}
-                      >
-                        {pos.label}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-4 gap-1">
-                    {positions.map((pos) => {
-                      const isAvailable = availablePositions.includes(pos.id);
-                      return (
-                        <button
-                          key={pos.id}
-                          onClick={() => isAvailable && setSelectedPosition(pos.id)}
-                          disabled={!isAvailable}
-                          className={cn(
-                            "px-1.5 py-1.5 text-[10px] font-medium rounded transition-all",
-                            effectivePosition === pos.id
-                              ? "text-white"
-                              : isAvailable
-                                ? "bg-[hsl(220,15%,12%)] text-[hsl(220,15%,55%)] hover:bg-[hsl(220,15%,15%)]"
-                                : "bg-[hsl(220,15%,8%)] text-[hsl(220,15%,25%)] cursor-not-allowed"
-                          )}
-                          style={effectivePosition === pos.id ? { backgroundColor: pos.color } : {}}
-                        >
-                          {pos.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+      {/* Mobile Controls Sheet */}
+      {isMobile && (
+        <Sheet open={mobileControlsOpen} onOpenChange={setMobileControlsOpen}>
+          <SheetContent side="left" className="w-[280px] bg-[hsl(220,20%,7%)] border-[hsl(220,15%,13%)] p-0 overflow-y-auto">
+            <SheetHeader className="p-4 border-b border-[hsl(220,15%,13%)]">
+              <SheetTitle className="text-white flex items-center gap-2">
+                <Target className="w-4 h-4 text-[hsl(142,70%,50%)]" />
+                Controles de Range
+              </SheetTitle>
+            </SheetHeader>
+            <div className="p-4 space-y-3">
+              <ControlsContent 
+                showHelp={showHelp}
+                scenarioCategories={scenarioCategories}
+                selectedScenario={selectedScenario}
+                setSelectedScenario={setSelectedScenario}
+                setSelectedHand={setSelectedHand}
+                setSelectedHandData={setSelectedHandData}
+                selectedPosition={selectedPosition}
+                setSelectedPosition={setSelectedPosition}
+                selectedStack={selectedStack}
+                setSelectedStack={setSelectedStack}
+                effectivePosition={effectivePosition}
+                availablePositions={availablePositions}
+                positions={positions}
+                bbDefensePositions={bbDefensePositions}
+                stackOptions={stackOptions}
+                onClose={() => setMobileControlsOpen(false)}
+              />
             </div>
+          </SheetContent>
+        </Sheet>
+      )}
 
-            {/* Stack Depth */}
-            <div className="bg-[hsl(220,18%,9%)] rounded-lg border border-[hsl(220,15%,13%)] overflow-hidden">
-              <div className="px-3 py-2 border-b border-[hsl(220,15%,13%)] flex items-center justify-between">
-                <span className="text-[10px] font-medium text-[hsl(220,15%,50%)] uppercase tracking-wider">Stack Efetivo</span>
-                <EducationalTooltip term="range">
-                  <Info className="w-3 h-3 text-[hsl(220,15%,35%)]" />
-                </EducationalTooltip>
-              </div>
-              <div className="p-2 grid grid-cols-5 gap-1">
-                {stackOptions.map((stack) => (
-                  <button
-                    key={stack.id}
-                    onClick={() => setSelectedStack(stack.id)}
-                    className={cn(
-                      "py-2 text-center rounded transition-all",
-                      selectedStack === stack.id
-                        ? "bg-[hsl(43,90%,50%)] text-[hsl(220,20%,10%)]"
-                        : "bg-[hsl(220,15%,12%)] text-[hsl(220,15%,55%)] hover:bg-[hsl(220,15%,15%)]"
-                    )}
-                  >
-                    <div className="text-[9px] font-medium">{stack.label}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Educational Info Box */}
-            <div className="bg-gradient-to-br from-[hsl(260,30%,12%)] to-[hsl(220,18%,9%)] rounded-lg border border-[hsl(260,30%,20%)] p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="w-4 h-4 text-purple-400" />
-                <span className="text-xs font-semibold text-foreground">Dica Pro</span>
-              </div>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Clique em qualquer mão da matriz e use a <strong className="text-purple-300">Análise IA</strong> para entender o porquê de cada ação. Perfeito para aprender GTO do zero!
-              </p>
+      <div className="w-full px-2 md:px-4 py-4 h-[calc(100vh-80px)] overflow-y-auto">
+        {/* Mobile Controls Toggle */}
+        {isMobile && (
+          <div className="mb-4 flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMobileControlsOpen(true)}
+              className="bg-[hsl(220,18%,9%)] border-[hsl(220,15%,18%)] text-white"
+            >
+              <Menu className="w-4 h-4 mr-2" />
+              Controles
+            </Button>
+            <div className="text-xs text-muted-foreground">
+              <span className="text-[hsl(142,70%,50%)]">{currentScenario?.shortLabel}</span>
+              <span className="mx-1">•</span>
+              <span>{currentPos?.label}</span>
+              <span className="mx-1">•</span>
+              <span>{selectedStack}</span>
             </div>
           </div>
+        )}
+
+        <div className={cn(
+          "max-w-[1600px] mx-auto items-start",
+          isMobile ? "flex flex-col gap-4" : "flex gap-4 lg:gap-6"
+        )}>
+          {/* Left Sidebar - Controls (Desktop) */}
+          {!isMobile && (
+            <div className={cn(
+              "flex-shrink-0 space-y-3 sticky top-4 transition-all duration-300",
+              leftSidebarCollapsed ? "w-12" : "w-52"
+            )}>
+              {/* Collapse Toggle */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
+                className="w-full bg-[hsl(220,18%,9%)] border border-[hsl(220,15%,13%)] text-[hsl(220,15%,50%)] hover:text-white hover:bg-[hsl(220,15%,15%)]"
+              >
+                {leftSidebarCollapsed ? (
+                  <ChevronRight className="w-4 h-4" />
+                ) : (
+                  <>
+                    <ChevronLeft className="w-4 h-4 mr-2" />
+                    <span className="text-xs">Recolher</span>
+                  </>
+                )}
+              </Button>
+
+              {leftSidebarCollapsed ? (
+                <CollapsedControls
+                  selectedScenario={selectedScenario}
+                  effectivePosition={effectivePosition}
+                  selectedStack={selectedStack}
+                  onExpand={() => setLeftSidebarCollapsed(false)}
+                />
+              ) : (
+                <ControlsContent 
+                  showHelp={showHelp}
+                  scenarioCategories={scenarioCategories}
+                  selectedScenario={selectedScenario}
+                  setSelectedScenario={setSelectedScenario}
+                  setSelectedHand={setSelectedHand}
+                  setSelectedHandData={setSelectedHandData}
+                  selectedPosition={selectedPosition}
+                  setSelectedPosition={setSelectedPosition}
+                  selectedStack={selectedStack}
+                  setSelectedStack={setSelectedStack}
+                  effectivePosition={effectivePosition}
+                  availablePositions={availablePositions}
+                  positions={positions}
+                  bbDefensePositions={bbDefensePositions}
+                  stackOptions={stackOptions}
+                />
+              )}
+            </div>
+          )}
 
           {/* Main Content - Matrix */}
-          <div className="flex-1 min-w-0">
+          <div className={cn("min-w-0", isMobile ? "w-full overflow-x-auto" : "flex-1")}>
             <div className="bg-[hsl(220,18%,9%)] rounded-lg border border-[hsl(220,15%,13%)] overflow-hidden">
               {/* Matrix Header */}
               <div className="px-4 py-3 border-b border-[hsl(220,15%,13%)] flex items-center justify-between">
@@ -464,7 +436,10 @@ export default function Ranges() {
           </div>
 
           {/* Right Sidebar - Hand Details + AI */}
-          <div className="w-72 shrink-0 flex flex-col gap-3 sticky top-4">
+          <div className={cn(
+            "shrink-0 flex flex-col gap-3",
+            isMobile ? "w-full" : "w-72 sticky top-4"
+          )}>
             {/* Hand Details Card */}
             <div className="bg-[hsl(220,18%,9%)] rounded-lg border border-[hsl(220,15%,13%)] overflow-hidden">
               {selectedHand && selectedHandData ? (
