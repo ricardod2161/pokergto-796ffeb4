@@ -16,13 +16,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Painel", href: "/dashboard", icon: LayoutDashboard },
   { name: "Ranges 8-Max", href: "/ranges", icon: Grid3X3 },
-  { name: "Equity Calculator", href: "/equity", icon: Calculator },
-  { name: "EV Calculator", href: "/ev-calculator", icon: TrendingUp },
-  { name: "Hand Analysis", href: "/hand-analysis/import", icon: PlayCircle },
-  { name: "Statistics", href: "/statistics", icon: BarChart3 },
-  { name: "Betting Assistant", href: "/betting-assistant", icon: Crosshair },
+  { name: "Calculadora Equity", href: "/equity", icon: Calculator },
+  { name: "Calculadora EV", href: "/ev-calculator", icon: TrendingUp },
+  { name: "Análise de Mãos", href: "/hand-analysis/import", icon: PlayCircle },
+  { name: "Estatísticas", href: "/statistics", icon: BarChart3 },
+  { name: "Assistente de Bet", href: "/betting-assistant", icon: Crosshair },
 ];
 
 export function Sidebar() {
@@ -46,7 +46,7 @@ export function Sidebar() {
           {!collapsed && (
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-foreground">Poker GTO</span>
-              <span className="text-xs text-muted-foreground">Strategy Engine</span>
+              <span className="text-xs text-muted-foreground">Motor de Estratégia</span>
             </div>
           )}
         </div>
@@ -89,7 +89,7 @@ export function Sidebar() {
             ) : (
               <>
                 <ChevronLeft className="h-4 w-4" />
-                <span>Collapse</span>
+                <span>Recolher</span>
               </>
             )}
           </Button>
@@ -105,7 +105,7 @@ export function Sidebar() {
             )}
           >
             <LogOut className="h-5 w-5" />
-            {!collapsed && <span>Sign Out</span>}
+            {!collapsed && <span>Sair</span>}
           </Link>
         </div>
       </div>

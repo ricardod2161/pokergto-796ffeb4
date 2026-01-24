@@ -29,8 +29,8 @@ export default function Ranges() {
     <div className="p-6 lg:p-8 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Range Analyzer</h1>
-        <p className="text-muted-foreground">8-Max GTO opening ranges by position</p>
+        <h1 className="text-2xl font-bold text-foreground">Analisador de Ranges</h1>
+        <p className="text-muted-foreground">Ranges GTO de abertura 8-Max por posição</p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
@@ -46,7 +46,7 @@ export default function Ranges() {
 
           {/* Stack Depth */}
           <div className="card-glass rounded-xl p-5 space-y-3">
-            <label className="text-sm font-medium text-muted-foreground">Stack Depth</label>
+            <label className="text-sm font-medium text-muted-foreground">Profundidade de Stack</label>
             <div className="flex flex-wrap gap-2">
               {stackDepths.map((stack) => (
                 <button
@@ -67,7 +67,7 @@ export default function Ranges() {
 
           {/* Action Type */}
           <div className="card-glass rounded-xl p-5 space-y-3">
-            <label className="text-sm font-medium text-muted-foreground">Scenario</label>
+            <label className="text-sm font-medium text-muted-foreground">Cenário</label>
             <div className="flex flex-wrap gap-2">
               {actions.map((action) => (
                 <button
@@ -90,13 +90,13 @@ export default function Ranges() {
           {selectedHand && selectedHandData && (
             <div className="card-glass rounded-xl p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-foreground">Hand Details</h3>
+                <h3 className="font-semibold text-foreground">Detalhes da Mão</h3>
                 <span className="text-2xl font-mono font-bold text-foreground">{selectedHand}</span>
               </div>
               
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Action</span>
+                  <span className="text-sm text-muted-foreground">Ação</span>
                   <span className={cn(
                     "px-2 py-1 rounded-md text-sm font-medium capitalize",
                     selectedHandData.action === "raise" && "bg-success/20 text-success",
@@ -108,7 +108,7 @@ export default function Ranges() {
                 </div>
                 
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Frequency</span>
+                  <span className="text-sm text-muted-foreground">Frequência</span>
                   <span className="font-mono text-foreground">
                     {(selectedHandData.frequency * 100).toFixed(0)}%
                   </span>
@@ -116,7 +116,7 @@ export default function Ranges() {
                 
                 {selectedHandData.ev !== undefined && (
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Expected Value</span>
+                    <span className="text-sm text-muted-foreground">Valor Esperado</span>
                     <span className={cn(
                       "font-mono font-medium",
                       selectedHandData.ev >= 0 ? "text-success" : "text-destructive"
@@ -131,13 +131,13 @@ export default function Ranges() {
               <div className="pt-3 border-t border-border">
                 <p className="text-sm text-muted-foreground">
                   {selectedHandData.action === "raise" && 
-                    `This hand is a clear open in ${selectedPosition} position. Consider sizing based on stack depth and table dynamics.`
+                    `Esta mão é uma abertura clara na posição ${selectedPosition}. Considere o sizing baseado na profundidade do stack e dinâmica da mesa.`
                   }
                   {selectedHandData.action === "fold" && 
-                    `This hand is typically too weak to open from ${selectedPosition}. Folding is the optimal play.`
+                    `Esta mão é tipicamente fraca demais para abrir de ${selectedPosition}. Foldar é a jogada ótima.`
                   }
                   {selectedHandData.action === "call" && 
-                    `Mixed strategy hand. Can be played as a call or raise depending on opponent tendencies.`
+                    `Mão de estratégia mista. Pode ser jogada como call ou raise dependendo das tendências dos oponentes.`
                   }
                 </p>
               </div>

@@ -12,20 +12,20 @@ interface HandHistory {
 }
 
 const mockHands: HandHistory[] = [
-  { id: "1", date: "2024-01-15", stakes: "NL100", position: "BTN", hand: "A♠K♦", result: 245, action: "3-Bet" },
-  { id: "2", date: "2024-01-15", stakes: "NL100", position: "CO", hand: "Q♣Q♥", result: -120, action: "Call" },
-  { id: "3", date: "2024-01-14", stakes: "NL50", position: "BB", hand: "J♠T♠", result: 89, action: "Check" },
-  { id: "4", date: "2024-01-14", stakes: "NL100", position: "UTG", hand: "A♥A♣", result: 520, action: "4-Bet" },
-  { id: "5", date: "2024-01-13", stakes: "NL50", position: "SB", hand: "7♦7♠", result: -45, action: "Fold" },
+  { id: "1", date: "15/01/2024", stakes: "NL100", position: "BTN", hand: "A♠K♦", result: 245, action: "3-Bet" },
+  { id: "2", date: "15/01/2024", stakes: "NL100", position: "CO", hand: "Q♣Q♥", result: -120, action: "Call" },
+  { id: "3", date: "14/01/2024", stakes: "NL50", position: "BB", hand: "J♠T♠", result: 89, action: "Check" },
+  { id: "4", date: "14/01/2024", stakes: "NL100", position: "UTG", hand: "A♥A♣", result: 520, action: "4-Bet" },
+  { id: "5", date: "13/01/2024", stakes: "NL50", position: "SB", hand: "7♦7♠", result: -45, action: "Fold" },
 ];
 
 export function RecentHandsTable() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-foreground">Recent Hands</h3>
+        <h3 className="font-semibold text-foreground">Mãos Recentes</h3>
         <Link to="/hand-analysis/import" className="text-sm text-primary hover:underline">
-          View all
+          Ver todas
         </Link>
       </div>
       
@@ -33,12 +33,12 @@ export function RecentHandsTable() {
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Data</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">Stakes</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Position</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Hand</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Action</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Result</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Posição</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Mão</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Ação</th>
+              <th className="px-4 py-3 text-right font-medium text-muted-foreground">Resultado</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">

@@ -1,28 +1,28 @@
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 
 const mockData = [
-  { date: "Jan 1", ev: 120, actual: 95 },
-  { date: "Jan 5", ev: 280, actual: 310 },
-  { date: "Jan 10", ev: 190, actual: 145 },
-  { date: "Jan 15", ev: 420, actual: 480 },
-  { date: "Jan 20", ev: 380, actual: 350 },
-  { date: "Jan 25", ev: 520, actual: 590 },
-  { date: "Jan 30", ev: 680, actual: 720 },
+  { date: "1 Jan", ev: 120, actual: 95 },
+  { date: "5 Jan", ev: 280, actual: 310 },
+  { date: "10 Jan", ev: 190, actual: 145 },
+  { date: "15 Jan", ev: 420, actual: 480 },
+  { date: "20 Jan", ev: 380, actual: 350 },
+  { date: "25 Jan", ev: 520, actual: 590 },
+  { date: "30 Jan", ev: 680, actual: 720 },
 ];
 
 export function PerformanceChart() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-foreground">Performance Trend</h3>
+        <h3 className="font-semibold text-foreground">Tendência de Performance</h3>
         <div className="flex items-center gap-4 text-xs">
           <div className="flex items-center gap-1.5">
             <div className="h-2 w-2 rounded-full bg-primary" />
-            <span className="text-muted-foreground">Expected Value</span>
+            <span className="text-muted-foreground">Valor Esperado</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="h-2 w-2 rounded-full bg-gold" />
-            <span className="text-muted-foreground">Actual Results</span>
+            <span className="text-muted-foreground">Resultados Reais</span>
           </div>
         </div>
       </div>

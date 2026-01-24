@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PokerCard, CardPlaceholder } from "@/components/poker/PokerCard";
-import { TrendingUp, TrendingDown, Minus, Crosshair } from "lucide-react";
+import { TrendingUp, TrendingDown, Crosshair } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Suit = "hearts" | "diamonds" | "clubs" | "spades";
@@ -52,11 +52,10 @@ export default function BettingAssistant() {
   };
 
   const handleAnalyze = () => {
-    // Demo recommendation
     setRecommendation({
       action: "bet",
-      sizing: "75% pot",
-      reason: "Strong top pair with backdoor flush draw on a wet board. Betting for value and protection.",
+      sizing: "75% pote",
+      reason: "Top pair forte com backdoor flush draw em board molhado. Apostando por valor e proteção.",
       equityChange: 12.5
     });
   };
@@ -74,11 +73,11 @@ export default function BettingAssistant() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Betting Assistant</h1>
-          <p className="text-muted-foreground">Get optimal bet sizing recommendations</p>
+          <h1 className="text-2xl font-bold text-foreground">Assistente de Apostas</h1>
+          <p className="text-muted-foreground">Receba recomendações de sizing ótimo</p>
         </div>
         <Button variant="outline" size="sm" onClick={handleReset}>
-          Reset
+          Reiniciar
         </Button>
       </div>
 
@@ -88,13 +87,13 @@ export default function BettingAssistant() {
           {/* Hero Hand */}
           <div className="card-glass rounded-xl p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-foreground">Your Hand</h3>
+              <h3 className="font-semibold text-foreground">Sua Mão</h3>
               <Button 
                 variant="outline" 
                 size="sm"
                 onClick={() => setShowCardPicker(showCardPicker === "hero" ? null : "hero")}
               >
-                {heroCards.length < 2 ? "Select Cards" : "Change"}
+                {heroCards.length < 2 ? "Selecionar Cartas" : "Alterar"}
               </Button>
             </div>
             <div className="flex gap-3">
@@ -116,7 +115,7 @@ export default function BettingAssistant() {
                 size="sm"
                 onClick={() => setShowCardPicker(showCardPicker === "board" ? null : "board")}
               >
-                {boardCards.length < 5 ? "Add Cards" : "Change"}
+                {boardCards.length < 5 ? "Adicionar Cartas" : "Alterar"}
               </Button>
             </div>
             <div className="flex gap-3">
@@ -131,10 +130,10 @@ export default function BettingAssistant() {
             {/* Equity evolution indicator */}
             {boardCards.length >= 3 && heroCards.length === 2 && (
               <div className="flex items-center gap-4 pt-4 border-t border-border">
-                <span className="text-sm text-muted-foreground">Equity Evolution:</span>
+                <span className="text-sm text-muted-foreground">Evolução da Equity:</span>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1">
-                    <span className="text-xs text-muted-foreground">Preflop</span>
+                    <span className="text-xs text-muted-foreground">Pré-flop</span>
                     <span className="font-mono text-foreground">52%</span>
                   </div>
                   <TrendingUp className="w-4 h-4 text-success" />
@@ -160,7 +159,7 @@ export default function BettingAssistant() {
           {showCardPicker && (
             <div className="card-glass rounded-xl p-6 space-y-4">
               <h3 className="font-semibold text-foreground">
-                Select {showCardPicker === "hero" ? "Hero" : "Board"} Card
+                Selecionar Carta {showCardPicker === "hero" ? "da Mão" : "do Board"}
               </h3>
               <div className="grid grid-cols-13 gap-1">
                 {suits.map(suit => (
@@ -193,7 +192,7 @@ export default function BettingAssistant() {
                 onClick={() => setShowCardPicker(null)}
                 className="w-full"
               >
-                Done
+                Pronto
               </Button>
             </div>
           )}
@@ -201,11 +200,11 @@ export default function BettingAssistant() {
           {/* Pot Size */}
           <div className="card-glass rounded-xl p-6 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="potSize">Current Pot Size (BB)</Label>
+              <Label htmlFor="potSize">Tamanho do Pote Atual (BB)</Label>
               <Input
                 id="potSize"
                 type="number"
-                placeholder="e.g., 45"
+                placeholder="ex: 45"
                 value={potSize}
                 onChange={(e) => setPotSize(e.target.value)}
                 className="h-11 bg-input border-border font-mono"
@@ -222,7 +221,7 @@ export default function BettingAssistant() {
             disabled={heroCards.length < 2 || boardCards.length < 3}
           >
             <Crosshair className="w-5 h-5 mr-2" />
-            Get Recommendation
+            Obter Recomendação
           </Button>
         </div>
 
@@ -235,7 +234,7 @@ export default function BettingAssistant() {
             recommendation && recommendation.action === "check" && "border-warning/50",
             recommendation && recommendation.action === "fold" && "border-destructive/50"
           )}>
-            <h3 className="font-semibold text-foreground mb-4">Recommendation</h3>
+            <h3 className="font-semibold text-foreground mb-4">Recomendação</h3>
             
             {recommendation ? (
               <div className="space-y-6">
@@ -246,7 +245,7 @@ export default function BettingAssistant() {
                   recommendation.action === "check" && "bg-warning/20 text-warning",
                   recommendation.action === "fold" && "bg-destructive/20 text-destructive"
                 )}>
-                  {recommendation.action === "bet" && "🎯 BET"}
+                  {recommendation.action === "bet" && "🎯 APOSTAR"}
                   {recommendation.action === "check" && "⏸ CHECK"}
                   {recommendation.action === "fold" && "✗ FOLD"}
                 </div>
@@ -254,9 +253,9 @@ export default function BettingAssistant() {
                 {/* Sizing suggestion */}
                 {recommendation.sizing && (
                   <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Suggested Sizing:</p>
+                    <p className="text-sm text-muted-foreground">Sizing Sugerido:</p>
                     <div className="grid grid-cols-3 gap-2">
-                      {["33%", "50%", "75%", "100%", "150%", "All-in"].map((size) => (
+                      {["33%", "50%", "75% pote", "100%", "150%", "All-in"].map((size) => (
                         <button
                           key={size}
                           className={cn(
@@ -275,7 +274,7 @@ export default function BettingAssistant() {
 
                 {/* Equity change */}
                 <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                  <span className="text-sm text-muted-foreground">Equity Change</span>
+                  <span className="text-sm text-muted-foreground">Mudança na Equity</span>
                   <div className={cn(
                     "flex items-center gap-1 font-mono font-bold",
                     recommendation.equityChange >= 0 ? "text-success" : "text-destructive"
@@ -294,7 +293,7 @@ export default function BettingAssistant() {
 
                 {/* Reasoning */}
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Analysis:</p>
+                  <p className="text-sm text-muted-foreground">Análise:</p>
                   <p className="text-sm text-foreground">{recommendation.reason}</p>
                 </div>
               </div>
@@ -302,7 +301,7 @@ export default function BettingAssistant() {
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Crosshair className="w-12 h-12 text-muted-foreground/50 mb-3" />
                 <p className="text-sm text-muted-foreground">
-                  Select your hand and the board, then click analyze
+                  Selecione sua mão e o board, depois clique em analisar
                 </p>
               </div>
             )}
@@ -311,13 +310,13 @@ export default function BettingAssistant() {
           {/* Board Texture Analysis */}
           {boardCards.length >= 3 && (
             <div className="card-glass rounded-xl p-6 space-y-4">
-              <h3 className="font-semibold text-foreground">Board Texture</h3>
+              <h3 className="font-semibold text-foreground">Textura do Board</h3>
               <div className="space-y-2">
                 {[
-                  { label: "Texture", value: "Dry" },
-                  { label: "Flush Draws", value: "None" },
-                  { label: "Straight Draws", value: "Gutshot possible" },
-                  { label: "Paired", value: "No" },
+                  { label: "Textura", value: "Seco" },
+                  { label: "Flush Draws", value: "Nenhum" },
+                  { label: "Straight Draws", value: "Gutshot possível" },
+                  { label: "Pareado", value: "Não" },
                 ].map((item) => (
                   <div key={item.label} className="flex justify-between text-sm">
                     <span className="text-muted-foreground">{item.label}</span>

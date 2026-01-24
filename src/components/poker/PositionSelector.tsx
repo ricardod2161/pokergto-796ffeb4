@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 const positions = [
   { id: "UTG", label: "UTG", fullName: "Under the Gun" },
   { id: "UTG1", label: "UTG+1", fullName: "Under the Gun +1" },
-  { id: "MP", label: "MP", fullName: "Middle Position" },
+  { id: "MP", label: "MP", fullName: "Posição Média" },
   { id: "HJ", label: "HJ", fullName: "Hijack" },
   { id: "CO", label: "CO", fullName: "Cutoff" },
   { id: "BTN", label: "BTN", fullName: "Button" },
@@ -19,7 +19,7 @@ interface PositionSelectorProps {
 export function PositionSelector({ selectedPosition, onPositionChange }: PositionSelectorProps) {
   return (
     <div className="flex flex-col gap-3">
-      <label className="text-sm font-medium text-muted-foreground">Position</label>
+      <label className="text-sm font-medium text-muted-foreground">Posição</label>
       <div className="grid grid-cols-4 gap-2">
         {positions.map((pos) => (
           <button

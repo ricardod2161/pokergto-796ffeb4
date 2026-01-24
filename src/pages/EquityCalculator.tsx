@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { CardPlaceholder, PokerCard } from "@/components/poker/PokerCard";
 import { Calculator, RotateCcw, History } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 type Suit = "hearts" | "diamonds" | "clubs" | "spades";
 type Rank = "A" | "K" | "Q" | "J" | "T" | "9" | "8" | "7" | "6" | "5" | "4" | "3" | "2";
@@ -46,7 +46,6 @@ export default function EquityCalculator() {
   };
 
   const handleCalculate = () => {
-    // Simulated results for demo
     setResults({
       win: 65.4,
       tie: 2.1,
@@ -62,9 +61,9 @@ export default function EquityCalculator() {
   };
 
   const pieData = results ? [
-    { name: "Win", value: results.win, color: "hsl(142, 71%, 45%)" },
-    { name: "Tie", value: results.tie, color: "hsl(43, 96%, 56%)" },
-    { name: "Lose", value: results.lose, color: "hsl(0, 72%, 51%)" },
+    { name: "Vitória", value: results.win, color: "hsl(142, 71%, 45%)" },
+    { name: "Empate", value: results.tie, color: "hsl(43, 96%, 56%)" },
+    { name: "Derrota", value: results.lose, color: "hsl(0, 72%, 51%)" },
   ] : [];
 
   return (
@@ -72,12 +71,12 @@ export default function EquityCalculator() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Equity Calculator</h1>
-          <p className="text-muted-foreground">Calculate hand vs range equity</p>
+          <h1 className="text-2xl font-bold text-foreground">Calculadora de Equity</h1>
+          <p className="text-muted-foreground">Calcule equity mão vs range</p>
         </div>
         <Button variant="outline" size="sm" onClick={handleReset}>
           <RotateCcw className="w-4 h-4 mr-2" />
-          Reset
+          Reiniciar
         </Button>
       </div>
 
@@ -87,13 +86,13 @@ export default function EquityCalculator() {
           {/* Hero Hand */}
           <div className="card-glass rounded-xl p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-foreground">Your Hand</h3>
+              <h3 className="font-semibold text-foreground">Sua Mão</h3>
               <Button 
                 variant="outline" 
                 size="sm"
                 onClick={() => setShowCardPicker(showCardPicker === "hero" ? null : "hero")}
               >
-                Select Cards
+                Selecionar Cartas
               </Button>
             </div>
             <div className="flex gap-3">
@@ -115,7 +114,7 @@ export default function EquityCalculator() {
                 size="sm"
                 onClick={() => setShowCardPicker(showCardPicker === "board" ? null : "board")}
               >
-                Add Cards
+                Adicionar Cartas
               </Button>
             </div>
             <div className="flex gap-3">
@@ -139,7 +138,7 @@ export default function EquityCalculator() {
           {showCardPicker && (
             <div className="card-glass rounded-xl p-6 space-y-4">
               <h3 className="font-semibold text-foreground">
-                Select {showCardPicker === "hero" ? "Hero" : "Board"} Card
+                Selecionar Carta {showCardPicker === "hero" ? "da Mão" : "do Board"}
               </h3>
               <div className="grid grid-cols-13 gap-1">
                 {suits.map(suit => (
@@ -178,7 +177,7 @@ export default function EquityCalculator() {
             disabled={heroCards.length < 2}
           >
             <Calculator className="w-5 h-5 mr-2" />
-            Calculate Equity
+            Calcular Equity
           </Button>
         </div>
 
@@ -186,7 +185,7 @@ export default function EquityCalculator() {
         <div className="space-y-6">
           {/* Results Card */}
           <div className="card-glass rounded-xl p-6 space-y-4">
-            <h3 className="font-semibold text-foreground">Results</h3>
+            <h3 className="font-semibold text-foreground">Resultados</h3>
             
             {results ? (
               <>
@@ -212,15 +211,15 @@ export default function EquityCalculator() {
                 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between p-3 rounded-lg bg-success/10">
-                    <span className="text-sm text-muted-foreground">Win</span>
+                    <span className="text-sm text-muted-foreground">Vitória</span>
                     <span className="font-mono font-bold text-success">{results.win}%</span>
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-warning/10">
-                    <span className="text-sm text-muted-foreground">Tie</span>
+                    <span className="text-sm text-muted-foreground">Empate</span>
                     <span className="font-mono font-bold text-warning">{results.tie}%</span>
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-destructive/10">
-                    <span className="text-sm text-muted-foreground">Lose</span>
+                    <span className="text-sm text-muted-foreground">Derrota</span>
                     <span className="font-mono font-bold text-destructive">{results.lose}%</span>
                   </div>
                 </div>
@@ -229,7 +228,7 @@ export default function EquityCalculator() {
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Calculator className="w-12 h-12 text-muted-foreground/50 mb-3" />
                 <p className="text-sm text-muted-foreground">
-                  Select your hand and click calculate to see equity
+                  Selecione sua mão e clique em calcular para ver a equity
                 </p>
               </div>
             )}
@@ -239,10 +238,10 @@ export default function EquityCalculator() {
           <div className="card-glass rounded-xl p-6 space-y-4">
             <div className="flex items-center gap-2">
               <History className="w-4 h-4 text-muted-foreground" />
-              <h3 className="font-semibold text-foreground">Recent Calculations</h3>
+              <h3 className="font-semibold text-foreground">Cálculos Recentes</h3>
             </div>
             <div className="space-y-2 text-sm text-muted-foreground">
-              <p className="text-center py-4">No calculations yet</p>
+              <p className="text-center py-4">Nenhum cálculo ainda</p>
             </div>
           </div>
         </div>

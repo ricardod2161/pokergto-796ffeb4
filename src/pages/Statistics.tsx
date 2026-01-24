@@ -1,10 +1,8 @@
-import { StatCard } from "@/components/dashboard/StatCard";
 import { 
   Percent, 
   TrendingUp, 
   Target, 
   DollarSign,
-  Users,
   Eye,
   Crosshair,
   Layers
@@ -16,17 +14,14 @@ import {
   XAxis, 
   YAxis, 
   Tooltip, 
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  Cell
+  ResponsiveContainer
 } from "recharts";
 
 const trendData = [
-  { date: "Week 1", vpip: 26, pfr: 20, threeBet: 7 },
-  { date: "Week 2", vpip: 25, pfr: 19, threeBet: 8 },
-  { date: "Week 3", vpip: 24, pfr: 19, threeBet: 8 },
-  { date: "Week 4", vpip: 24.5, pfr: 19.2, threeBet: 8.7 },
+  { date: "Semana 1", vpip: 26, pfr: 20, threeBet: 7 },
+  { date: "Semana 2", vpip: 25, pfr: 19, threeBet: 8 },
+  { date: "Semana 3", vpip: 24, pfr: 19, threeBet: 8 },
+  { date: "Semana 4", vpip: 24.5, pfr: 19.2, threeBet: 8.7 },
 ];
 
 const positionData = [
@@ -54,8 +49,8 @@ export default function Statistics() {
     <div className="p-6 lg:p-8 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Statistics</h1>
-        <p className="text-muted-foreground">Detailed analysis of your playing profile</p>
+        <h1 className="text-2xl font-bold text-foreground">Estatísticas</h1>
+        <p className="text-muted-foreground">Análise detalhada do seu perfil de jogo</p>
       </div>
 
       {/* Main HUD Stats */}
@@ -67,7 +62,7 @@ export default function Statistics() {
           { label: "AF", value: "3.2", icon: Crosshair },
           { label: "WTSD", value: "28%", icon: Eye },
           { label: "W$SD", value: "52%", icon: DollarSign },
-          { label: "Hands", value: "10.2k", icon: Layers },
+          { label: "Mãos", value: "10.2k", icon: Layers },
           { label: "BB/100", value: "+5.2", icon: TrendingUp },
         ].map((stat) => (
           <div key={stat.label} className="card-glass rounded-xl p-4 text-center">
@@ -81,7 +76,7 @@ export default function Statistics() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Trend Chart */}
         <div className="card-glass rounded-xl p-6 space-y-4">
-          <h3 className="font-semibold text-foreground">Stats Trend</h3>
+          <h3 className="font-semibold text-foreground">Tendência das Estatísticas</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData}>
@@ -145,7 +140,7 @@ export default function Statistics() {
 
         {/* Benchmark Comparison */}
         <div className="card-glass rounded-xl p-6 space-y-4">
-          <h3 className="font-semibold text-foreground">GTO Benchmark Comparison</h3>
+          <h3 className="font-semibold text-foreground">Comparação com GTO</h3>
           <div className="space-y-3">
             {benchmarks.map((b) => {
               const diff = b.current - b.optimal;
@@ -178,7 +173,7 @@ export default function Statistics() {
                     />
                   </div>
                   <p className="text-[10px] text-muted-foreground">
-                    Optimal: {b.optimal}{b.unit}
+                    Ótimo: {b.optimal}{b.unit}
                   </p>
                 </div>
               );
@@ -189,7 +184,7 @@ export default function Statistics() {
 
       {/* Position Performance */}
       <div className="card-glass rounded-xl p-6 space-y-4">
-        <h3 className="font-semibold text-foreground">Performance by Position</h3>
+        <h3 className="font-semibold text-foreground">Desempenho por Posição</h3>
         <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
           {positionData.map((pos) => (
             <div 
@@ -210,7 +205,7 @@ export default function Statistics() {
               </p>
               <p className="text-[10px] text-muted-foreground">BB/100</p>
               <div className="mt-2 pt-2 border-t border-border">
-                <p className="text-xs text-muted-foreground">{pos.hands} hands</p>
+                <p className="text-xs text-muted-foreground">{pos.hands} mãos</p>
                 <p className={cn(
                   "text-xs font-mono",
                   pos.profit >= 0 ? "text-success" : "text-destructive"
