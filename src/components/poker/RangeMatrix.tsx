@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 
 const ranks = ["A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"];
 
@@ -50,10 +49,10 @@ export function RangeMatrix({ position, rangeData, onHandClick, selectedHand }: 
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-muted-foreground">
-          {position} Opening Range
+          Range de Abertura {position}
         </h3>
         <span className="text-xs text-muted-foreground font-mono">
-          {Object.values(rangeData).filter(h => h.action !== "fold").length * 100 / 169}% of hands
+          {Object.values(rangeData).filter(h => h.action !== "fold").length * 100 / 169}% das mãos
         </span>
       </div>
       
@@ -64,7 +63,6 @@ export function RangeMatrix({ position, rangeData, onHandClick, selectedHand }: 
             const data = rangeData[hand] || { action: "fold", frequency: 0 };
             const isSelected = selectedHand === hand;
             const isPair = rowIdx === colIdx;
-            const isSuited = rowIdx < colIdx;
 
             return (
               <button

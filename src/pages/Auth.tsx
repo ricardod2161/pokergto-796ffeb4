@@ -14,7 +14,6 @@ export default function Auth() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Demo: navigate directly to dashboard
     navigate("/dashboard");
   };
 
@@ -32,7 +31,7 @@ export default function Auth() {
             <Spade className="w-8 h-8 text-primary-foreground" />
           </div>
           <h1 className="text-3xl font-bold text-foreground">Poker GTO</h1>
-          <p className="text-muted-foreground mt-2">Strategy Engine for Serious Players</p>
+          <p className="text-muted-foreground mt-2">Motor de Estratégia para Jogadores Sérios</p>
         </div>
 
         {/* Auth Card */}
@@ -40,22 +39,22 @@ export default function Auth() {
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-xl font-semibold text-foreground">
-                {isLogin ? "Welcome Back" : "Create Account"}
+                {isLogin ? "Bem-vindo de Volta" : "Criar Conta"}
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
                 {isLogin 
-                  ? "Sign in to continue your session" 
-                  : "Start your journey to optimal play"}
+                  ? "Entre para continuar sua sessão" 
+                  : "Comece sua jornada para o jogo ótimo"}
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">E-mail</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder="voce@exemplo.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="h-11 bg-input border-border"
@@ -63,7 +62,7 @@ export default function Auth() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Senha</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -85,7 +84,7 @@ export default function Auth() {
 
               {!isLogin && (
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Label htmlFor="confirmPassword">Confirmar Senha</Label>
                   <Input
                     id="confirmPassword"
                     type="password"
@@ -96,7 +95,7 @@ export default function Auth() {
               )}
 
               <Button type="submit" variant="gold" size="lg" className="w-full">
-                {isLogin ? "Sign In" : "Create Account"}
+                {isLogin ? "Entrar" : "Criar Conta"}
               </Button>
             </form>
 
@@ -105,18 +104,18 @@ export default function Auth() {
                 <div className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">or</span>
+                <span className="bg-card px-2 text-muted-foreground">ou</span>
               </div>
             </div>
 
             <p className="text-center text-sm text-muted-foreground">
-              {isLogin ? "Don't have an account? " : "Already have an account? "}
+              {isLogin ? "Não tem uma conta? " : "Já tem uma conta? "}
               <button
                 type="button"
                 onClick={() => setIsLogin(!isLogin)}
                 className="text-primary hover:underline font-medium"
               >
-                {isLogin ? "Sign up" : "Sign in"}
+                {isLogin ? "Cadastre-se" : "Entrar"}
               </button>
             </p>
           </div>
@@ -124,7 +123,7 @@ export default function Auth() {
 
         {/* Footer */}
         <p className="text-center text-xs text-muted-foreground mt-6">
-          By continuing, you agree to our Terms of Service and Privacy Policy
+          Ao continuar, você concorda com nossos Termos de Serviço e Política de Privacidade
         </p>
       </div>
     </div>
