@@ -52,6 +52,18 @@ const positionCoords6Max = {
   CO: { top: "75%", left: "25%" },
 };
 
+// Position coordinates for 8-max table (percentages)
+const positionCoords8Max = {
+  BTN: { top: "80%", left: "65%" },
+  SB: { top: "55%", left: "92%" },
+  BB: { top: "25%", left: "88%" },
+  UTG: { top: "12%", left: "55%" },
+  "UTG+1": { top: "12%", left: "35%" },
+  MP: { top: "25%", left: "12%" },
+  HJ: { top: "55%", left: "8%" },
+  CO: { top: "80%", left: "25%" },
+};
+
 // Position coordinates for 9-max table (percentages)
 const positionCoords9Max = {
   BTN: { top: "80%", left: "70%" },
@@ -72,16 +84,12 @@ export default function HandAnalysis() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [parsedHand, setParsedHand] = useState<ParsedHand | null>(() => generateSampleHand());
   const [currentActionIndex, setCurrentActionIndex] = useState(0);
-  const [tableSize, setTableSize] = useState<6 | 9>(6);
+  const [tableSize, setTableSize] = useState<6 | 8 | 9>(8);
   const isMobile = useIsMobile();
 
   // Generate table players based on parsed hand or defaults
   const tablePlayers = useMemo((): TablePlayer[] => {
-    const positions6Max = ["BTN", "SB", "BB", "UTG", "MP", "CO"];
-    const positions9Max = ["BTN", "SB", "BB", "UTG", "UTG+1", "MP", "MP+1", "HJ", "CO"];
-    const positions = tableSize === 6 ? positions6Max : positions9Max;
-    
-    // Demo players
+    // Demo players base (6-max)
     const demoPlayers: TablePlayer[] = [
       { position: "BTN", name: "Herói", stack: 500, isHero: true, isActive: true, cards: [{ rank: "A", suit: "spades" }, { rank: "K", suit: "hearts" }] },
       { position: "SB", name: "Player2", stack: 485, isHero: false, isActive: true },
@@ -90,6 +98,13 @@ export default function HandAnalysis() {
       { position: "MP", name: "Player5", stack: 380, isHero: false, isActive: false, hasFolded: true },
       { position: "CO", name: "Player6", stack: 610, isHero: false, isActive: false, hasFolded: true },
     ];
+
+    if (tableSize === 8) {
+      demoPlayers.push(
+        { position: "UTG+1", name: "Player7", stack: 420, isHero: false, isActive: false, hasFolded: true },
+        { position: "HJ", name: "Player8", stack: 550, isHero: false, isActive: false, hasFolded: true },
+      );
+    }
 
     if (tableSize === 9) {
       demoPlayers.push(
@@ -253,7 +268,7 @@ export default function HandAnalysis() {
   };
 
   const potSize = parsedHand?.potSize || 245;
-  const positionCoords = tableSize === 6 ? positionCoords6Max : positionCoords9Max;
+  const positionCoords = tableSize === 6 ? positionCoords6Max : tableSize === 8 ? positionCoords8Max : positionCoords9Max;
 
   const PlayerSeat = ({ player, coords }: { player: TablePlayer; coords: { top: string; left: string } }) => {
     const cardSize = isMobile ? "xs" : "sm";
@@ -549,28 +564,20 @@ Dealt to Hero [Ah Kd]
           <div className="flex gap-2 flex-wrap">
             {/* Table size toggle */}
             <div className="flex rounded-lg border border-[hsl(220,15%,20%)] overflow-hidden">
-              <button
-                onClick={() => setTableSize(6)}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-medium transition-colors",
-                  tableSize === 6 
-                    ? "bg-primary text-primary-foreground" 
-                    : "bg-[hsl(220,15%,10%)] text-muted-foreground hover:text-foreground"
-                )}
-              >
-                6-Max
-              </button>
-              <button
-                onClick={() => setTableSize(9)}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-medium transition-colors",
-                  tableSize === 9 
-                    ? "bg-primary text-primary-foreground" 
-                    : "bg-[hsl(220,15%,10%)] text-muted-foreground hover:text-foreground"
-                )}
-              >
-                9-Max
-              </button>
+              {([6, 8, 9] as const).map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setTableSize(size)}
+                  className={cn(
+                    "px-2.5 sm:px-3 py-1.5 text-xs font-medium transition-colors",
+                    tableSize === size 
+                      ? "bg-primary text-primary-foreground" 
+                      : "bg-[hsl(220,15%,10%)] text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {size}-Max
+                </button>
+              ))}
             </div>
 
             {parsedHand && (
