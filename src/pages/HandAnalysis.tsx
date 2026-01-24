@@ -18,13 +18,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import {
   Tabs,
   TabsContent,
   TabsList,
@@ -38,6 +31,40 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
+interface TablePlayer {
+  position: string;
+  name: string;
+  stack: number;
+  isHero: boolean;
+  isActive: boolean;
+  cards?: { rank: string; suit: string }[];
+  currentBet?: number;
+  hasFolded?: boolean;
+}
+
+// Position coordinates for 6-max table (percentages)
+const positionCoords6Max = {
+  BTN: { top: "75%", left: "75%" },
+  SB: { top: "45%", left: "92%" },
+  BB: { top: "15%", left: "75%" },
+  UTG: { top: "15%", left: "25%" },
+  MP: { top: "45%", left: "8%" },
+  CO: { top: "75%", left: "25%" },
+};
+
+// Position coordinates for 9-max table (percentages)
+const positionCoords9Max = {
+  BTN: { top: "80%", left: "70%" },
+  SB: { top: "55%", left: "92%" },
+  BB: { top: "25%", left: "88%" },
+  UTG: { top: "12%", left: "65%" },
+  "UTG+1": { top: "12%", left: "35%" },
+  MP: { top: "25%", left: "12%" },
+  "MP+1": { top: "55%", left: "8%" },
+  HJ: { top: "80%", left: "15%" },
+  CO: { top: "80%", left: "42%" },
+};
+
 export default function HandAnalysis() {
   const [handHistory, setHandHistory] = useState("");
   const [isPlaying, setIsPlaying] = useState(false);
@@ -45,7 +72,35 @@ export default function HandAnalysis() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [parsedHand, setParsedHand] = useState<ParsedHand | null>(() => generateSampleHand());
   const [currentActionIndex, setCurrentActionIndex] = useState(0);
+  const [tableSize, setTableSize] = useState<6 | 9>(6);
   const isMobile = useIsMobile();
+
+  // Generate table players based on parsed hand or defaults
+  const tablePlayers = useMemo((): TablePlayer[] => {
+    const positions6Max = ["BTN", "SB", "BB", "UTG", "MP", "CO"];
+    const positions9Max = ["BTN", "SB", "BB", "UTG", "UTG+1", "MP", "MP+1", "HJ", "CO"];
+    const positions = tableSize === 6 ? positions6Max : positions9Max;
+    
+    // Demo players
+    const demoPlayers: TablePlayer[] = [
+      { position: "BTN", name: "Herói", stack: 500, isHero: true, isActive: true, cards: [{ rank: "A", suit: "spades" }, { rank: "K", suit: "hearts" }] },
+      { position: "SB", name: "Player2", stack: 485, isHero: false, isActive: true },
+      { position: "BB", name: "Vilão", stack: 520, isHero: false, isActive: true },
+      { position: "UTG", name: "Player4", stack: 450, isHero: false, isActive: false, hasFolded: true },
+      { position: "MP", name: "Player5", stack: 380, isHero: false, isActive: false, hasFolded: true },
+      { position: "CO", name: "Player6", stack: 610, isHero: false, isActive: false, hasFolded: true },
+    ];
+
+    if (tableSize === 9) {
+      demoPlayers.push(
+        { position: "UTG+1", name: "Player7", stack: 420, isHero: false, isActive: false, hasFolded: true },
+        { position: "MP+1", name: "Player8", stack: 390, isHero: false, isActive: false, hasFolded: true },
+        { position: "HJ", name: "Player9", stack: 550, isHero: false, isActive: false, hasFolded: true },
+      );
+    }
+
+    return demoPlayers;
+  }, [tableSize, parsedHand]);
 
   // Get cards based on parsed hand or defaults
   const heroCards = useMemo(() => {
@@ -198,16 +253,74 @@ export default function HandAnalysis() {
   };
 
   const potSize = parsedHand?.potSize || 245;
+  const positionCoords = tableSize === 6 ? positionCoords6Max : positionCoords9Max;
+
+  const PlayerSeat = ({ player, coords }: { player: TablePlayer; coords: { top: string; left: string } }) => {
+    const cardSize = isMobile ? "xs" : "sm";
+    
+    return (
+      <div 
+        className={cn(
+          "absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 transition-all duration-300",
+          player.hasFolded && "opacity-40"
+        )}
+        style={{ top: coords.top, left: coords.left }}
+      >
+        {/* Player cards */}
+        <div className="flex gap-0.5">
+          {player.isHero && player.cards ? (
+            player.cards.map((card, i) => (
+              <PokerCard 
+                key={i} 
+                rank={card.rank as any} 
+                suit={card.suit as any} 
+                size={cardSize}
+                highlighted={player.isActive}
+              />
+            ))
+          ) : (
+            <>
+              <PokerCard rank="A" suit="spades" size={cardSize} faceDown />
+              <PokerCard rank="A" suit="spades" size={cardSize} faceDown />
+            </>
+          )}
+        </div>
+        
+        {/* Player info badge */}
+        <div className={cn(
+          "px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-center min-w-[50px] sm:min-w-[70px] transition-all",
+          player.isHero 
+            ? "bg-primary text-primary-foreground" 
+            : player.isActive 
+              ? "bg-[hsl(220,15%,20%)] text-foreground border border-[hsl(220,15%,30%)]"
+              : "bg-[hsl(220,15%,15%)] text-muted-foreground",
+          player.hasFolded && "line-through"
+        )}>
+          <p className={cn(
+            "font-medium leading-tight",
+            isMobile ? "text-[8px]" : "text-[10px]"
+          )}>
+            {player.position}
+          </p>
+          <p className={cn(
+            "font-mono",
+            isMobile ? "text-[7px]" : "text-[9px]"
+          )}>
+            {player.hasFolded ? "Fold" : `R$ ${player.stack}`}
+          </p>
+        </div>
+      </div>
+    );
+  };
 
   const ImportPanel = () => (
     <div className="space-y-4">
-      {/* Educational Banner */}
       <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
         <div className="flex items-start gap-2">
           <Lightbulb className="w-4 h-4 text-primary mt-0.5 shrink-0" />
           <div className="text-xs text-muted-foreground">
             <span className="font-medium text-primary block mb-1">Como importar mãos</span>
-            Copie o histórico completo da mão do seu cliente de poker e cole aqui. O sistema detectará automaticamente o formato.
+            Copie o histórico completo da mão do seu cliente de poker e cole aqui.
           </div>
         </div>
       </div>
@@ -242,11 +355,10 @@ Dealt to Hero [Ah Kd]
           onClick={handleLoadSample}
         >
           <FileText className="w-4 h-4 mr-2" />
-          Carregar Exemplo
+          Exemplo
         </Button>
       </div>
       
-      {/* Format Examples */}
       <div className="p-3 rounded-lg bg-[hsl(220,15%,10%)] border border-[hsl(220,15%,15%)]">
         <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-1.5">
           <Info className="w-3.5 h-3.5 text-muted-foreground" />
@@ -259,43 +371,6 @@ Dealt to Hero [Ah Kd]
             </span>
           ))}
         </div>
-      </div>
-
-      {/* Sample format */}
-      <div className="p-3 rounded-lg bg-[hsl(220,15%,10%)] border border-[hsl(220,15%,15%)]">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
-            <Copy className="w-3.5 h-3.5 text-muted-foreground" />
-            Exemplo de Formato
-          </p>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 text-[10px]"
-            onClick={() => {
-              navigator.clipboard.writeText(`PokerStars Hand #123456789:  Hold'em No Limit ($0.50/$1.00)
-Table 'Mesa 1' 6-max Seat #1 is the button
-Seat 1: Hero ($100 in chips)
-Seat 2: Villain ($98 in chips)
-Dealt to Hero [Ah Kd]
-Villain: raises $3 to $4
-Hero: raises $12 to $16
-Villain: calls $12
-*** FLOP *** [Ks 7c 2d]
-Villain: checks
-Hero: bets $22
-Villain: calls $22`);
-              toast.success("Exemplo copiado!");
-            }}
-          >
-            Copiar
-          </Button>
-        </div>
-        <pre className="text-[10px] text-muted-foreground font-mono whitespace-pre-wrap leading-relaxed">
-{`PokerStars Hand #123...
-Dealt to Hero [Ah Kd]
-*** FLOP *** [Ks 7c 2d]`}
-        </pre>
       </div>
     </div>
   );
@@ -319,7 +394,6 @@ Dealt to Hero [Ah Kd]
         </TabsList>
         
         <TabsContent value="gto" className="mt-4 space-y-4">
-          {/* GTO Analysis */}
           <div className="rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)] p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
@@ -335,7 +409,7 @@ Dealt to Hero [Ah Kd]
                   </TooltipTrigger>
                   <TooltipContent side="left" className="max-w-64">
                     <p className="text-xs">
-                      <span className="font-medium">GTO (Game Theory Optimal)</span> é a estratégia matematicamente perfeita que não pode ser explorada.
+                      <span className="font-medium">GTO (Game Theory Optimal)</span> é a estratégia matematicamente perfeita.
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -375,7 +449,6 @@ Dealt to Hero [Ah Kd]
             </div>
           </div>
 
-          {/* Hand Strength Meter */}
           <div className="rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)] p-4">
             <h3 className="font-semibold text-foreground text-sm flex items-center gap-2 mb-4">
               <Target className="w-4 h-4 text-gold" />
@@ -473,7 +546,33 @@ Dealt to Hero [Ah Kd]
             </p>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            {/* Table size toggle */}
+            <div className="flex rounded-lg border border-[hsl(220,15%,20%)] overflow-hidden">
+              <button
+                onClick={() => setTableSize(6)}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-medium transition-colors",
+                  tableSize === 6 
+                    ? "bg-primary text-primary-foreground" 
+                    : "bg-[hsl(220,15%,10%)] text-muted-foreground hover:text-foreground"
+                )}
+              >
+                6-Max
+              </button>
+              <button
+                onClick={() => setTableSize(9)}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-medium transition-colors",
+                  tableSize === 9 
+                    ? "bg-primary text-primary-foreground" 
+                    : "bg-[hsl(220,15%,10%)] text-muted-foreground hover:text-foreground"
+                )}
+              >
+                9-Max
+              </button>
+            </div>
+
             {parsedHand && (
               <Button 
                 variant="outline" 
@@ -481,16 +580,16 @@ Dealt to Hero [Ah Kd]
                 className="border-destructive/30 text-destructive hover:bg-destructive/10"
                 onClick={handleClearHand}
               >
-                <Trash2 className="w-4 h-4 mr-2" />
+                <Trash2 className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">Limpar</span>
               </Button>
             )}
             
             <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
               <DialogTrigger asChild>
-                <Button variant="gold" size="sm" className="w-full sm:w-auto">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Importar Histórico
+                <Button variant="gold" size="sm">
+                  <Upload className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Importar Histórico</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="bg-[hsl(220,18%,8%)] border-[hsl(220,15%,15%)] max-w-lg max-h-[90vh] overflow-y-auto">
@@ -510,10 +609,9 @@ Dealt to Hero [Ah Kd]
               <Zap className="w-4 h-4 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-medium text-foreground mb-1">O que é o Hand Replayer?</h3>
+              <h3 className="text-sm font-medium text-foreground mb-1">Hand Replayer Profissional</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Reveja suas mãos jogada por jogada e descubra onde você poderia ter tomado decisões melhores. 
-                Use os controles abaixo para navegar entre as ações.
+                Visualize todas as posições da mesa e navegue jogada por jogada. Clique em qualquer ação no histórico para pular diretamente.
               </p>
             </div>
           </div>
@@ -526,28 +624,31 @@ Dealt to Hero [Ah Kd]
             <div className="rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)] overflow-hidden">
               <div className={cn(
                 "relative bg-gradient-to-b from-[hsl(153,40%,18%)] to-[hsl(153,45%,12%)]",
-                isMobile ? "aspect-[4/3] min-h-[280px]" : "aspect-[16/10]"
+                isMobile ? "aspect-square min-h-[320px]" : "aspect-[16/10] min-h-[400px]"
               )}>
-                {/* Table border */}
+                {/* Table felt border */}
                 <div className={cn(
-                  "absolute border-4 border-[hsl(153,35%,25%)]/40 rounded-full",
-                  isMobile ? "inset-4 sm:inset-6" : "inset-8"
+                  "absolute border-4 border-[hsl(153,35%,25%)]/40 rounded-[50%]",
+                  isMobile ? "inset-6" : "inset-10 lg:inset-12"
                 )} />
                 
-                {/* Pot display */}
+                {/* Inner table line */}
                 <div className={cn(
-                  "absolute left-1/2 -translate-x-1/2 text-center",
-                  isMobile ? "top-[15%]" : "top-[20%]"
-                )}>
-                  <p className="text-[10px] lg:text-xs text-white/60 uppercase tracking-wider">Pote</p>
+                  "absolute border-2 border-[hsl(153,35%,30%)]/30 rounded-[50%]",
+                  isMobile ? "inset-8" : "inset-14 lg:inset-16"
+                )} />
+                
+                {/* Pot display - center */}
+                <div className="absolute top-[25%] left-1/2 -translate-x-1/2 text-center z-10">
+                  <p className="text-[10px] lg:text-xs text-white/60 uppercase tracking-wider font-medium">Pote</p>
                   <p className={cn(
                     "font-mono font-bold text-gold",
-                    isMobile ? "text-lg" : "text-2xl"
+                    isMobile ? "text-lg" : "text-2xl lg:text-3xl"
                   )}>R$ {potSize.toFixed(2).replace(".", ",")}</p>
                 </div>
 
-                {/* Board cards */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1 sm:gap-2">
+                {/* Board cards - center */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1 sm:gap-1.5 z-10">
                   {currentStreet !== "preflop" && boardCards.flop.map((card, i) => (
                     <PokerCard key={i} rank={card.rank} suit={card.suit} size={isMobile ? "sm" : "md"} />
                   ))}
@@ -558,61 +659,35 @@ Dealt to Hero [Ah Kd]
                     <PokerCard rank={boardCards.river.rank} suit={boardCards.river.suit} size={isMobile ? "sm" : "md"} />
                   )}
                   {currentStreet === "preflop" && (
-                    <div className="text-white/40 text-sm font-medium">Pré-Flop</div>
+                    <div className="px-4 py-2 rounded-lg bg-[hsl(220,18%,10%)]/80 backdrop-blur-sm">
+                      <span className="text-white/60 text-sm font-medium">Pré-Flop</span>
+                    </div>
                   )}
                 </div>
 
-                {/* Hero position */}
-                <div className={cn(
-                  "absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 sm:gap-2",
-                  isMobile ? "bottom-4" : "bottom-8"
-                )}>
-                  <div className="flex gap-1">
-                    {heroCards.map((card, i) => (
-                      <PokerCard key={i} rank={card.rank} suit={card.suit} size={isMobile ? "sm" : "md"} />
-                    ))}
-                  </div>
-                  <div className={cn(
-                    "px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-primary text-primary-foreground font-medium",
-                    isMobile ? "text-[10px]" : "text-xs"
-                  )}>
-                    Herói ({parsedHand?.heroPosition || "BTN"}) • R$ {parsedHand?.hero?.stack || 500}
-                  </div>
-                </div>
-
-                {/* Villain position */}
-                <div className={cn(
-                  "absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 sm:gap-2",
-                  isMobile ? "top-3" : "top-6"
-                )}>
-                  <div className={cn(
-                    "px-2 sm:px-3 py-1 sm:py-1.5 rounded-full bg-[hsl(220,15%,20%)] text-foreground font-medium",
-                    isMobile ? "text-[10px]" : "text-xs"
-                  )}>
-                    Vilão (BB) • R$ 485
-                  </div>
-                  <div className="flex gap-1">
-                    <PokerCard rank="A" suit="spades" size={isMobile ? "sm" : "sm"} faceDown />
-                    <PokerCard rank="A" suit="spades" size={isMobile ? "sm" : "sm"} faceDown />
-                  </div>
-                </div>
+                {/* All player positions */}
+                {tablePlayers.map((player) => {
+                  const coords = positionCoords[player.position as keyof typeof positionCoords];
+                  if (!coords) return null;
+                  return <PlayerSeat key={player.position} player={player} coords={coords} />;
+                })}
 
                 {/* Equity display */}
                 <div className={cn(
-                  "absolute bg-[hsl(220,18%,10%)]/90 backdrop-blur-sm rounded-lg text-right border border-[hsl(220,15%,18%)]",
+                  "absolute bg-[hsl(220,18%,10%)]/90 backdrop-blur-sm rounded-lg text-right border border-[hsl(220,15%,18%)] z-20",
                   isMobile ? "top-2 right-2 p-2" : "top-4 right-4 p-3"
                 )}>
-                  <p className="text-[9px] lg:text-[10px] text-muted-foreground uppercase tracking-wider">Equity vs Range</p>
+                  <p className="text-[9px] lg:text-[10px] text-muted-foreground uppercase tracking-wider">Equity</p>
                   <p className={cn(
                     "font-mono font-bold text-success",
                     isMobile ? "text-base" : "text-xl"
                   )}>78.4%</p>
                 </div>
 
-                {/* Action indicator */}
+                {/* Current action indicator */}
                 {actionHistory[currentActionIndex] && (
                   <div className={cn(
-                    "absolute bg-[hsl(220,18%,10%)]/90 backdrop-blur-sm rounded-lg border border-[hsl(220,15%,18%)]",
+                    "absolute bg-[hsl(220,18%,10%)]/90 backdrop-blur-sm rounded-lg border border-[hsl(220,15%,18%)] z-20",
                     isMobile ? "bottom-2 left-2 p-2" : "bottom-4 left-4 p-3"
                   )}>
                     <p className="text-[9px] lg:text-[10px] text-muted-foreground uppercase tracking-wider">Ação Atual</p>
