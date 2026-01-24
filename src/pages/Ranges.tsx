@@ -216,10 +216,10 @@ export default function Ranges() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-4 h-[calc(100vh-80px)] overflow-y-auto">
-        <div className="flex gap-4 items-start">
+      <div className="max-w-[1400px] mx-auto px-4 py-4 h-[calc(100vh-80px)] overflow-y-auto overflow-x-hidden">
+        <div className="flex gap-6 items-start min-w-0">
           {/* Left Sidebar - Controls */}
-          <div className="w-60 shrink-0 space-y-3 sticky top-4">
+          <div className="w-56 min-w-[224px] shrink-0 space-y-3 sticky top-4">
             {/* Quick Help Panel */}
             {showHelp && <QuickHelp />}
 
