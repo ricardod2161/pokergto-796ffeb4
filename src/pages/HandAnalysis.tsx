@@ -133,14 +133,16 @@ export default function HandAnalysis() {
     initialHand.heroCards as HeroCard[]
   );
   const [isCardPickerOpen, setIsCardPickerOpen] = useState(false);
+  // Track if user manually edited hero cards
+  const [isManuallyEdited, setIsManuallyEdited] = useState(false);
   const isMobile = useIsMobile();
 
-  // Sync customHeroCards when parsedHand changes (e.g., new random hand)
+  // Sync customHeroCards when parsedHand changes (only if NOT manually edited)
   useEffect(() => {
-    if (parsedHand?.heroCards && parsedHand.heroCards.length >= 2) {
+    if (parsedHand?.heroCards && parsedHand.heroCards.length >= 2 && !isManuallyEdited) {
       setCustomHeroCards(parsedHand.heroCards as HeroCard[]);
     }
-  }, [parsedHand]);
+  }, [parsedHand, isManuallyEdited]);
   
   // AI Analysis hook
   const { analysis, isLoading: isAnalyzing, error: analysisError, analyzeHand, clearAnalysis, usage, planName, canUseAnalysis } = useHandAnalysisAI();
@@ -159,6 +161,7 @@ export default function HandAnalysis() {
   const handleCardSelect = (card: HeroCard) => {
     if (customHeroCards.length < 2) {
       setCustomHeroCards([...customHeroCards, card]);
+      setIsManuallyEdited(true); // Mark as manually edited
       if (customHeroCards.length === 1) {
         setIsCardPickerOpen(false);
       }
@@ -236,12 +239,14 @@ export default function HandAnalysis() {
     });
   }, [tableSize, heroPosition, parsedHand, customHeroCards]);
 
-  // Get cards based on parsed hand or custom selection
+  // Get cards based on custom selection (ALWAYS prioritize customHeroCards - source of truth)
   const heroCards = useMemo(() => {
-    if (parsedHand?.heroCards && parsedHand.heroCards.length >= 2) {
-      return parsedHand.heroCards;
+    // customHeroCards is always the source of truth after any edit
+    if (customHeroCards.length === 2) {
+      return customHeroCards;
     }
-    return customHeroCards;
+    // Fallback to parsedHand only if no custom cards
+    return parsedHand?.heroCards || [];
   }, [parsedHand, customHeroCards]);
   
   const boardCards = useMemo(() => {
@@ -357,6 +362,8 @@ export default function HandAnalysis() {
   const handleNewRandomHand = useCallback(() => {
     const newHand = generateSampleHand();
     setParsedHand(newHand);
+    setCustomHeroCards(newHand.heroCards as HeroCard[]); // Sync cards
+    setIsManuallyEdited(false); // Reset manual edit flag
     setCurrentStreet("flop");
     setCurrentActionIndex(0);
     clearAnalysis();
