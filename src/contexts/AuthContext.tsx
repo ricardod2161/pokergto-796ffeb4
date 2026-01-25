@@ -27,6 +27,8 @@ interface Subscription {
   billing_period: "monthly" | "yearly" | null;
   current_period_start: string | null;
   current_period_end: string | null;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
   created_at: string;
 }
 

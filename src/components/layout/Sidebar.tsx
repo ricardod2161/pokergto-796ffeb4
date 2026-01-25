@@ -59,8 +59,20 @@ export function Sidebar() {
     navigate("/auth");
   };
 
+  // Check if user has Stripe customer link
+  const hasStripeCustomer = subscription?.stripe_customer_id != null;
+
   const handleManageSubscription = async () => {
     if (!subscription || subscription.plan === "free") {
+      navigate("/pricing");
+      return;
+    }
+
+    // If no Stripe customer, redirect to pricing to link properly
+    if (!hasStripeCustomer) {
+      toast.info("Para gerenciar sua assinatura, vincule ao Stripe", {
+        description: "Acesse a página de planos para sincronizar."
+      });
       navigate("/pricing");
       return;
     }
@@ -76,6 +88,13 @@ export function Sidebar() {
     try {
       const { data, error } = await supabase.functions.invoke("customer-portal");
       if (error) throw error;
+      
+      if (data?.code === "NO_STRIPE_CUSTOMER") {
+        toast.error("Nenhum registro encontrado no Stripe");
+        navigate("/pricing");
+        return;
+      }
+      
       if (data?.url) {
         window.open(data.url, "_blank");
       }
@@ -138,6 +157,11 @@ export function Sidebar() {
                   {subscription?.status === "canceled" && (
                     <Badge variant="outline" className="text-[9px] px-1 text-amber-500 border-amber-500/30">
                       Cancelado
+                    </Badge>
+                  )}
+                  {subscription && subscription.plan !== "free" && !hasStripeCustomer && (
+                    <Badge variant="outline" className="text-[9px] px-1 text-blue-500 border-blue-500/30">
+                      Cortesia
                     </Badge>
                   )}
                 </div>
@@ -290,6 +314,7 @@ export function Sidebar() {
           onOpenChange={setShowCancelModal}
           plan={subscription.plan}
           periodEnd={subscription.current_period_end}
+          hasStripeCustomer={hasStripeCustomer}
         />
       )}
     </aside>
