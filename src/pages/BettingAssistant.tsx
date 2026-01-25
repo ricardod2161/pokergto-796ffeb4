@@ -9,6 +9,7 @@ import { MultiStreetPlan } from "@/components/betting/MultiStreetPlan";
 import { HandHistoryPanel, HandHistoryEntry } from "@/components/betting/HandHistoryPanel";
 import { GameContextForm } from "@/components/betting/GameContextForm";
 import { AIAnalysisPanel } from "@/components/betting/AIAnalysisPanel";
+import { UsageBadge } from "@/components/usage/UsageBadge";
 import { useGTOAnalysis } from "@/hooks/useGTOAnalysis";
 import {
   analyzeBoardTexture,
@@ -49,7 +50,7 @@ export default function BettingAssistant() {
   const [history, setHistory] = useState<HandHistoryEntry[]>([]);
   
   // AI Analysis hook
-  const { isAnalyzing, aiAnalysis, error: aiError, analyzeWithAI, clearAnalysis } = useGTOAnalysis();
+  const { isAnalyzing, aiAnalysis, error: aiError, analyzeWithAI, clearAnalysis, usage, planName, canUseAnalysis } = useGTOAnalysis();
 
   // Computed values
   const allUsedCards = useMemo(() => [...heroCards, ...boardCards], [heroCards, boardCards]);
@@ -201,15 +202,24 @@ export default function BettingAssistant() {
             </h1>
             <p className="text-xs text-muted-foreground">Análise GTO com recomendações de sizing ótimo</p>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleReset}
-            className="border-[hsl(220,15%,20%)] hover:bg-[hsl(220,15%,15%)] h-8"
-          >
-            <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
-            Reiniciar
-          </Button>
+          <div className="flex items-center gap-2">
+            <UsageBadge
+              currentCount={usage.currentCount}
+              dailyLimit={usage.dailyLimit}
+              remaining={usage.remaining}
+              isUnlimited={usage.isUnlimited}
+              planName={planName}
+            />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleReset}
+              className="border-[hsl(220,15%,20%)] hover:bg-[hsl(220,15%,15%)] h-8"
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+              Reiniciar
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">

@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
+import { useUsageLimits } from "./useUsageLimits";
 
 interface HandContext {
   heroCards: { rank: string; suit: string }[];
@@ -20,8 +21,17 @@ export function useHandAnalysisAI() {
   const [analysis, setAnalysis] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { usage, checkAndIncrementUsage, canUseAnalysis, planName } = useUsageLimits();
+  const usageRef = useRef({ usage, checkAndIncrementUsage, canUseAnalysis, planName });
+  usageRef.current = { usage, checkAndIncrementUsage, canUseAnalysis, planName };
 
   const analyzeHand = useCallback(async (context: HandContext) => {
+    // Check usage limits before making the API call
+    const canProceed = await usageRef.current.checkAndIncrementUsage();
+    if (!canProceed) {
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setAnalysis("");
@@ -124,5 +134,8 @@ export function useHandAnalysisAI() {
     error,
     analyzeHand,
     clearAnalysis,
+    usage: usageRef.current.usage,
+    planName: usageRef.current.planName,
+    canUseAnalysis: usageRef.current.canUseAnalysis,
   };
 }

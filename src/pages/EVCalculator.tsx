@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useEVAnalysis } from "@/hooks/useEVAnalysis";
 import { EVAIPanel } from "@/components/ev/EVAIPanel";
+import { UsageBadge } from "@/components/usage/UsageBadge";
 
 interface HistoryEntry {
   id: string;
@@ -62,7 +63,7 @@ export default function EVCalculator() {
   const [showEducation, setShowEducation] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
   
-  const { analysis, isLoading: isAILoading, error: aiError, analyzeEV, clearAnalysis } = useEVAnalysis();
+  const { analysis, isLoading: isAILoading, error: aiError, analyzeEV, clearAnalysis, usage, planName, canUseAnalysis } = useEVAnalysis();
 
   // Clear AI analysis when inputs change significantly
   useEffect(() => {
@@ -156,16 +157,25 @@ export default function EVCalculator() {
         <div className="p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6 max-w-7xl mx-auto">
           {/* Header */}
           <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20">
-                <Calculator className="w-6 h-6 text-primary" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20">
+                  <Calculator className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h1 className="text-xl md:text-2xl font-bold text-foreground">Calculadora de EV</h1>
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    Calcule o Valor Esperado e tome decisões matematicamente corretas
+                  </p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-xl md:text-2xl font-bold text-foreground">Calculadora de EV</h1>
-                <p className="text-xs md:text-sm text-muted-foreground">
-                  Calcule o Valor Esperado e tome decisões matematicamente corretas
-                </p>
-              </div>
+              <UsageBadge
+                currentCount={usage.currentCount}
+                dailyLimit={usage.dailyLimit}
+                remaining={usage.remaining}
+                isUnlimited={usage.isUnlimited}
+                planName={planName}
+              />
             </div>
           </div>
 
