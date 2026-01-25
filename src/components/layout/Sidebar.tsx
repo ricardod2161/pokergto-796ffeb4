@@ -13,7 +13,8 @@ import {
   ChevronRight,
   Shield,
   CreditCard,
-  Crown
+  Crown,
+  FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -31,6 +32,11 @@ const navigation = [
   { name: "Estatísticas", href: "/statistics", icon: BarChart3 },
   { name: "Assistente de Bet", href: "/betting-assistant", icon: Crosshair },
   { name: "Planos", href: "/pricing", icon: CreditCard },
+];
+
+const legalLinks = [
+  { name: "Termos de Uso", href: "/terms", icon: FileText },
+  { name: "Privacidade", href: "/privacy", icon: Shield },
 ];
 
 export function Sidebar() {
@@ -161,6 +167,23 @@ export function Sidebar() {
               </>
             )}
           </Button>
+        </div>
+
+        {/* Legal Links */}
+        <div className="border-t border-sidebar-border p-2">
+          {legalLinks.map((item) => (
+            <Link
+              key={item.name}
+              to={item.href}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:text-foreground",
+                collapsed && "justify-center px-2"
+              )}
+            >
+              <item.icon className="h-3.5 w-3.5" />
+              {!collapsed && <span>{item.name}</span>}
+            </Link>
+          ))}
         </div>
 
         {/* Logout */}

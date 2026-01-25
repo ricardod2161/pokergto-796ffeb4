@@ -216,7 +216,10 @@ export default function Auth() {
 
         {/* Footer */}
         <p className="text-center text-xs text-muted-foreground mt-6">
-          Ao continuar, você concorda com nossos Termos de Serviço e Política de Privacidade
+          Ao continuar, você concorda com nossos{" "}
+          <a href="/terms" className="text-primary hover:underline">Termos de Uso</a>
+          {" "}e{" "}
+          <a href="/privacy" className="text-primary hover:underline">Política de Privacidade</a>
         </p>
       </div>
     </div>
