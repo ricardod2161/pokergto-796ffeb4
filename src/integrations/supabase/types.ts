@@ -271,6 +271,8 @@ export type Database = {
           daily_limit: number
         }[]
       }
+      reset_all_daily_usage: { Args: never; Returns: boolean }
+      reset_user_daily_usage: { Args: { p_user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user"

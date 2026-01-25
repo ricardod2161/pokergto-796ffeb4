@@ -7,7 +7,7 @@ import {
   RefreshCw, ChevronLeft, ChevronRight, Eye, Edit,
   Mail, Clock, Zap, Crown, Star, Settings, Trash2,
   UserCheck, UserX, AlertCircle, CheckCircle2, XCircle,
-  ArrowLeft, LayoutDashboard, Home
+  ArrowLeft, LayoutDashboard, Home, RotateCcw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminNotifications } from "@/hooks/useAdminNotifications";
+import { useUsageLimits } from "@/hooks/useUsageLimits";
 import { AdminNotifications } from "@/components/admin/AdminNotifications";
 import {
   DropdownMenu,
@@ -114,6 +115,7 @@ const COLORS = ['hsl(var(--muted-foreground))', 'hsl(var(--primary))', 'hsl(220,
 export default function Admin() {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
+  const { resetUserUsage, resetAllUsage } = useUsageLimits();
   const { 
     notifications, 
     unreadCount, 
@@ -795,6 +797,18 @@ export default function Admin() {
                     <SelectItem value="expired">Expirado</SelectItem>
                   </SelectContent>
                 </Select>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={async () => {
+                    await resetAllUsage();
+                    fetchData();
+                  }}
+                  className="border-border gap-2 whitespace-nowrap"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span className="hidden sm:inline">Resetar Todos</span>
+                </Button>
               </div>
             </div>
 
@@ -874,6 +888,15 @@ export default function Admin() {
                               <DropdownMenuItem onClick={() => handleToggleAdmin(user.id, user.is_admin)}>
                                 <Shield className="w-4 h-4 mr-2" />
                                 {user.is_admin ? "Remover Admin" : "Tornar Admin"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={async () => {
+                                  await resetUserUsage(user.id);
+                                  fetchData();
+                                }}
+                              >
+                                <RotateCcw className="w-4 h-4 mr-2" />
+                                Resetar Créditos
                               </DropdownMenuItem>
                               {user.status === "active" ? (
                                 <DropdownMenuItem 
