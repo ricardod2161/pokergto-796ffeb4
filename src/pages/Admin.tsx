@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   Users, BarChart3, CreditCard, Activity, Search, 
   MoreVertical, Shield, Ban, Check, TrendingUp,
   DollarSign, UserPlus, Calendar, Filter, Download,
   RefreshCw, ChevronLeft, ChevronRight, Eye, Edit,
   Mail, Clock, Zap, Crown, Star, Settings, Trash2,
-  UserCheck, UserX, AlertCircle, CheckCircle2, XCircle
+  UserCheck, UserX, AlertCircle, CheckCircle2, XCircle,
+  ArrowLeft, LayoutDashboard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,6 +104,7 @@ interface AdminStats {
 const COLORS = ['hsl(var(--muted-foreground))', 'hsl(var(--primary))', 'hsl(220, 60%, 60%)'];
 
 export default function Admin() {
+  const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const { 
     notifications, 
@@ -438,14 +441,25 @@ export default function Admin() {
       <div className="p-3 sm:p-4 lg:p-6 xl:p-8 space-y-4 lg:space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-2 lg:gap-3">
-              <Shield className="w-6 h-6 lg:w-7 lg:h-7 text-primary" />
-              Painel Admin
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-              Gerencie usuários, assinaturas e monitore métricas
-            </p>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/dashboard")}
+              className="border-border gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Voltar</span>
+            </Button>
+            <div>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-2 lg:gap-3">
+                <Shield className="w-6 h-6 lg:w-7 lg:h-7 text-primary" />
+                Painel Admin
+              </h1>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                Gerencie usuários, assinaturas e monitore métricas
+              </p>
+            </div>
           </div>
           <div className="flex gap-2">
             <AdminNotifications
