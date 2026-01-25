@@ -111,6 +111,38 @@ export function useUsageLimits() {
     }
   }, [user, isAdmin]);
 
+  const resetUserUsage = useCallback(async (userId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase.rpc("reset_user_daily_usage", {
+        p_user_id: userId,
+      });
+
+      if (error) throw error;
+
+      toast.success("Créditos resetados com sucesso!");
+      return true;
+    } catch (error) {
+      console.error("Error resetting usage:", error);
+      toast.error("Erro ao resetar créditos");
+      return false;
+    }
+  }, []);
+
+  const resetAllUsage = useCallback(async (): Promise<boolean> => {
+    try {
+      const { error } = await supabase.rpc("reset_all_daily_usage");
+
+      if (error) throw error;
+
+      toast.success("Todos os créditos foram resetados!");
+      return true;
+    } catch (error) {
+      console.error("Error resetting all usage:", error);
+      toast.error("Erro ao resetar créditos");
+      return false;
+    }
+  }, []);
+
   const canUseAnalysis = useCallback((): boolean => {
     if (!user) return false;
     if (isAdmin) return true; // Admins always can use
@@ -138,5 +170,7 @@ export function useUsageLimits() {
     fetchUsage,
     checkAndIncrementUsage,
     canUseAnalysis,
+    resetUserUsage,
+    resetAllUsage,
   };
 }
