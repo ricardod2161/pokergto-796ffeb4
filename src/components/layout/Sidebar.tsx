@@ -12,7 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
-  User,
+  CreditCard,
   Crown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,6 +30,7 @@ const navigation = [
   { name: "Análise de Mãos", href: "/hand-analysis/import", icon: PlayCircle },
   { name: "Estatísticas", href: "/statistics", icon: BarChart3 },
   { name: "Assistente de Bet", href: "/betting-assistant", icon: Crosshair },
+  { name: "Planos", href: "/pricing", icon: CreditCard },
 ];
 
 export function Sidebar() {
