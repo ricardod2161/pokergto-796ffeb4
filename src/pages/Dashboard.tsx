@@ -82,58 +82,58 @@ const alerts = [
 export default function Dashboard() {
   return (
     <div className="min-h-screen bg-[hsl(220,20%,6%)]">
-      <div className="p-6 lg:p-8 space-y-6">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
         {/* Subscription Status Banner */}
         <SubscriptionStatusBanner />
 
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Painel Principal</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Painel Principal</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Bem-vindo de volta. Aqui está seu resumo de desempenho.
           </p>
         </div>
 
         {/* Stats Bar */}
-        <div className="grid grid-cols-4 lg:grid-cols-8 gap-1 p-1 rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)]">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1 p-1 rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)]">
           {stats.map((stat) => (
             <div 
               key={stat.label}
-              className="flex flex-col items-center justify-center py-4 px-2 rounded-lg hover:bg-[hsl(220,15%,12%)] transition-colors"
+              className="flex flex-col items-center justify-center py-3 sm:py-4 px-2 rounded-lg hover:bg-[hsl(220,15%,12%)] transition-colors"
             >
-              <span className={cn("text-lg lg:text-xl font-bold font-mono", stat.color)}>
+              <span className={cn("text-base sm:text-lg lg:text-xl font-bold font-mono", stat.color)}>
                 {stat.value}
               </span>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">
+              <span className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider mt-1">
                 {stat.label}
               </span>
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Quick Actions */}
-            <div className="space-y-4">
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className="space-y-3 sm:space-y-4">
+              <h2 className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                 Ferramentas
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                 {quickActions.map((action) => (
                   <Link
                     key={action.title}
                     to={action.href}
-                    className="group flex items-center gap-4 p-4 rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)] hover:border-primary/40 transition-all"
+                    className="group flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)] hover:border-primary/40 transition-all"
                   >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                      <action.icon className="h-5 w-5 text-primary" />
+                    <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                      <action.icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-foreground text-sm group-hover:text-primary transition-colors">
+                      <h3 className="font-semibold text-foreground text-xs sm:text-sm group-hover:text-primary transition-colors">
                         {action.title}
                       </h3>
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
                         {action.description}
                       </p>
                     </div>
@@ -148,7 +148,7 @@ export default function Dashboard() {
               <h3 className="font-semibold text-foreground mb-4">Resumo de Desempenho</h3>
               <div className="space-y-4">
                 {/* Win rate by position */}
-                <div className="grid grid-cols-8 gap-2">
+                <div className="grid grid-cols-4 sm:grid-cols-8 gap-1 sm:gap-2">
                   {[
                     { pos: "UTG", value: "+2.1" },
                     { pos: "UTG+1", value: "+1.8" },
@@ -162,15 +162,15 @@ export default function Dashboard() {
                     <div 
                       key={item.pos}
                       className={cn(
-                        "text-center p-3 rounded-lg border transition-colors",
+                        "text-center p-2 sm:p-3 rounded-lg border transition-colors",
                         item.value.startsWith("+") 
                           ? "bg-success/5 border-success/20" 
                           : "bg-destructive/5 border-destructive/20"
                       )}
                     >
-                      <p className="text-xs text-muted-foreground mb-1">{item.pos}</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">{item.pos}</p>
                       <p className={cn(
-                        "font-mono font-bold text-sm",
+                        "font-mono font-bold text-xs sm:text-sm",
                         item.value.startsWith("+") ? "text-success" : "text-destructive"
                       )}>
                         {item.value}
