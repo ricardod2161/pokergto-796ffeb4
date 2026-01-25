@@ -24,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/ui/Logo";
 
 const easeOut: Easing = [0.0, 0.0, 0.2, 1];
 
@@ -210,14 +211,11 @@ export default function Landing() {
       >
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <motion.div 
-            className="flex items-center gap-2"
+            className="flex items-center gap-3"
             whileHover={{ scale: 1.05 }}
             transition={{ type: "spring", stiffness: 400 }}
           >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-xl text-foreground">PokerGTO Pro</span>
+            <Logo variant="full" size="lg" />
           </motion.div>
           
           <nav className="hidden md:flex items-center gap-8">

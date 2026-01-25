@@ -21,6 +21,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
+import { Logo } from "@/components/ui/Logo";
 
 const navigation = [
   { name: "Painel", href: "/dashboard", icon: LayoutDashboard },
@@ -78,14 +79,10 @@ export function Sidebar() {
           "flex h-16 items-center border-b border-sidebar-border px-4",
           collapsed ? "justify-center" : "gap-3"
         )}>
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-            <span className="text-lg font-bold text-primary-foreground">♠</span>
-          </div>
-          {!collapsed && (
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-foreground">Poker GTO</span>
-              <span className="text-xs text-muted-foreground">Motor de Estratégia</span>
-            </div>
+          {collapsed ? (
+            <Logo variant="icon" size="md" className="rounded-lg" />
+          ) : (
+            <Logo variant="full" size="lg" />
           )}
         </div>
 
