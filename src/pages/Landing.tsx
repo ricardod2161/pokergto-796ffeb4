@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/Logo";
+import { InstallBanner } from "@/components/pwa/InstallBanner";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -843,6 +844,9 @@ export default function Landing() {
           </div>
         </div>
       </motion.footer>
+
+      {/* Install Banner */}
+      <InstallBanner />
     </div>
   );
 }
