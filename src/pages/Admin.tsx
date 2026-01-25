@@ -14,6 +14,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdminNotifications } from "@/hooks/useAdminNotifications";
+import { AdminNotifications } from "@/components/admin/AdminNotifications";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -101,6 +103,13 @@ const COLORS = ['hsl(var(--muted-foreground))', 'hsl(var(--primary))', 'hsl(220,
 
 export default function Admin() {
   const { user: currentUser } = useAuth();
+  const { 
+    notifications, 
+    unreadCount, 
+    markAsRead, 
+    markAllAsRead, 
+    clearNotifications 
+  } = useAdminNotifications();
   const [activeTab, setActiveTab] = useState("overview");
   const [users, setUsers] = useState<UserData[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
@@ -439,6 +448,13 @@ export default function Admin() {
             </p>
           </div>
           <div className="flex gap-2">
+            <AdminNotifications
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onMarkAsRead={markAsRead}
+              onMarkAllAsRead={markAllAsRead}
+              onClear={clearNotifications}
+            />
             <Button 
               onClick={fetchData} 
               variant="outline" 
