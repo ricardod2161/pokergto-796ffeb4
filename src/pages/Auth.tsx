@@ -20,11 +20,18 @@ export default function Auth() {
   const location = useLocation();
   const { signIn, signUp, user } = useAuth();
 
-  // Redirect if already logged in
+  // Redirect if already logged in - show loading instead of null
   if (user) {
     const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/dashboard";
     navigate(from, { replace: true });
-    return null;
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Redirecionando...</p>
+        </div>
+      </div>
+    );
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

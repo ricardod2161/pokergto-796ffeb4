@@ -1,15 +1,31 @@
 import { Outlet } from "react-router-dom";
-import { useState } from "react";
-import { Menu } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Menu, Loader2 } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/Logo";
+import { cn } from "@/lib/utils";
 
 export function AppLayout() {
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Show loading until layout is determined
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (isMobile) {
     return (
@@ -40,11 +56,15 @@ export function AppLayout() {
   // Desktop Layout
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar />
-      <main className="pl-64 transition-all duration-300">
-        <div className="min-h-screen">
-          <Outlet />
-        </div>
+      <Sidebar 
+        collapsed={sidebarCollapsed} 
+        onCollapse={setSidebarCollapsed} 
+      />
+      <main className={cn(
+        "transition-all duration-300 min-h-screen",
+        sidebarCollapsed ? "pl-16" : "pl-64"
+      )}>
+        <Outlet />
       </main>
     </div>
   );
