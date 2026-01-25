@@ -1,10 +1,10 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { 
   Upload, Play, Pause, SkipBack, SkipForward, AlertTriangle, CheckCircle, 
   Info, ChevronRight, TrendingUp, Target, Brain, Users, DollarSign,
-  HelpCircle, Lightbulb, Eye, Zap, ChevronLeft, FileText, Trash2, Sparkles, X
+  HelpCircle, Lightbulb, Eye, Zap, ChevronLeft, FileText, Trash2, Sparkles, X, Shuffle
 } from "lucide-react";
 import { PokerCard, CardPlaceholder } from "@/components/poker/PokerCard";
 import { cn } from "@/lib/utils";
@@ -122,16 +122,25 @@ export default function HandAnalysis() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStreet, setCurrentStreet] = useState<Street>("flop");
   const [showImportDialog, setShowImportDialog] = useState(false);
-  const [parsedHand, setParsedHand] = useState<ParsedHand | null>(() => generateSampleHand());
+  // Initialize with a random hand
+  const [initialHand] = useState<ParsedHand>(() => generateSampleHand());
+  const [parsedHand, setParsedHand] = useState<ParsedHand | null>(initialHand);
   const [currentActionIndex, setCurrentActionIndex] = useState(0);
   const [tableSize, setTableSize] = useState<6 | 8 | 9>(8);
   const [heroPosition, setHeroPosition] = useState<string>("BTN");
-  const [customHeroCards, setCustomHeroCards] = useState<HeroCard[]>([
-    { rank: "A", suit: "spades" },
-    { rank: "K", suit: "hearts" }
-  ]);
+  // Initialize customHeroCards from the generated hand
+  const [customHeroCards, setCustomHeroCards] = useState<HeroCard[]>(() => 
+    initialHand.heroCards as HeroCard[]
+  );
   const [isCardPickerOpen, setIsCardPickerOpen] = useState(false);
   const isMobile = useIsMobile();
+
+  // Sync customHeroCards when parsedHand changes (e.g., new random hand)
+  useEffect(() => {
+    if (parsedHand?.heroCards && parsedHand.heroCards.length >= 2) {
+      setCustomHeroCards(parsedHand.heroCards as HeroCard[]);
+    }
+  }, [parsedHand]);
   
   // AI Analysis hook
   const { analysis, isLoading: isAnalyzing, error: analysisError, analyzeHand, clearAnalysis, usage, planName, canUseAnalysis } = useHandAnalysisAI();
@@ -239,15 +248,9 @@ export default function HandAnalysis() {
     if (parsedHand?.communityCards) {
       return parsedHand.communityCards;
     }
-    return {
-      flop: [
-        { rank: "K" as const, suit: "diamonds" as const },
-        { rank: "7" as const, suit: "clubs" as const },
-        { rank: "2" as const, suit: "spades" as const }
-      ],
-      turn: { rank: "Q" as const, suit: "hearts" as const },
-      river: { rank: "3" as const, suit: "diamonds" as const }
-    };
+    // Fallback - should not happen since we always initialize with generateSampleHand
+    const fallbackHand = generateSampleHand();
+    return fallbackHand.communityCards;
   }, [parsedHand]);
 
   const actionHistory = useMemo(() => {
@@ -259,14 +262,14 @@ export default function HandAnalysis() {
         type: action.action,
       }));
     }
-    return [
-      { player: "Vilão (BB)", action: "Raise para R$ 6", street: "preflop" as Street, type: "raise" },
-      { player: "Herói (BTN)", action: "3-Bet para R$ 18", street: "preflop" as Street, type: "raise" },
-      { player: "Vilão (BB)", action: "Call R$ 12", street: "preflop" as Street, type: "call" },
-      { player: "Vilão (BB)", action: "Check", street: "flop" as Street, type: "check" },
-      { player: "Herói (BTN)", action: "Aposta R$ 22 (60% pote)", street: "flop" as Street, type: "bet" },
-      { player: "Vilão (BB)", action: "Call R$ 22", street: "flop" as Street, type: "call" },
-    ];
+    // Fallback - generate new actions if none exist
+    const fallbackHand = generateSampleHand();
+    return fallbackHand.actions.map(action => ({
+      player: action.isHero ? `Herói (${fallbackHand.heroPosition})` : action.player,
+      action: formatAction(action),
+      street: action.street,
+      type: action.action,
+    }));
   }, [parsedHand]);
 
   function formatAction(action: Action): string {
@@ -332,20 +335,33 @@ export default function HandAnalysis() {
     }
   };
 
-  const handleLoadSample = () => {
-    setParsedHand(generateSampleHand());
+  const handleLoadSample = useCallback(() => {
+    const newHand = generateSampleHand();
+    setParsedHand(newHand);
     setCurrentStreet("flop");
     setCurrentActionIndex(0);
     setShowImportDialog(false);
-    toast.success("Mão de exemplo carregada!");
-  };
+    clearAnalysis();
+    toast.success("Nova mão aleatória carregada!");
+  }, [clearAnalysis]);
 
   const handleClearHand = () => {
     setParsedHand(null);
     setCurrentStreet("preflop");
     setCurrentActionIndex(0);
+    clearAnalysis();
     toast.info("Mão removida");
   };
+
+  // Generate a completely new random hand
+  const handleNewRandomHand = useCallback(() => {
+    const newHand = generateSampleHand();
+    setParsedHand(newHand);
+    setCurrentStreet("flop");
+    setCurrentActionIndex(0);
+    clearAnalysis();
+    toast.success("Nova mão gerada com sucesso!");
+  }, [clearAnalysis]);
 
   const handleNextAction = () => {
     if (currentActionIndex < actionHistory.length - 1) {
@@ -910,6 +926,17 @@ Dealt to Hero [Ah Kd]
                 </button>
               ))}
             </div>
+
+            {/* New Random Hand Button */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="border-primary/30 text-primary hover:bg-primary/10"
+              onClick={handleNewRandomHand}
+            >
+              <Shuffle className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Nova Mão</span>
+            </Button>
 
             {parsedHand && (
               <Button 
