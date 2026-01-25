@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { 
   Users, BarChart3, CreditCard, Activity, Search, 
   MoreVertical, Shield, Ban, Check, TrendingUp,
@@ -7,7 +7,7 @@ import {
   RefreshCw, ChevronLeft, ChevronRight, Eye, Edit,
   Mail, Clock, Zap, Crown, Star, Settings, Trash2,
   UserCheck, UserX, AlertCircle, CheckCircle2, XCircle,
-  ArrowLeft, LayoutDashboard
+  ArrowLeft, LayoutDashboard, Home
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,8 +57,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { 
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell
+  BarChart as RechartsBarChart, Bar, PieChart, Pie, Cell
 } from "recharts";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 type SubscriptionPlan = "free" | "pro" | "premium";
 type SubscriptionStatus = "active" | "canceled" | "expired" | "trial";
@@ -439,6 +447,27 @@ export default function Admin() {
   return (
     <div className="min-h-screen bg-background">
       <div className="p-3 sm:p-4 lg:p-6 xl:p-8 space-y-4 lg:space-y-6">
+        {/* Breadcrumb */}
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link to="/dashboard" className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                  <Home className="w-4 h-4" />
+                  <span className="hidden sm:inline">Dashboard</span>
+                </Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage className="flex items-center gap-1.5">
+                <Shield className="w-4 h-4" />
+                Painel Admin
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
