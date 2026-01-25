@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/Logo";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
+import ToolShowcaseCarousel from "@/components/landing/ToolShowcaseCarousel";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -414,70 +415,8 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Video Tutorial Section */}
-      <section id="tutorial" className="py-24 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-background via-primary/5 to-muted/30" />
-        <div className="container mx-auto relative">
-          <motion.div 
-            className="text-center mb-12"
-            {...fadeInUp}
-          >
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 px-4 py-2">
-              <Rocket className="w-3 h-3 mr-2" />
-              Veja em Ação
-            </Badge>
-            <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">
-              Conheça a Plataforma
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-primary to-gold">
-                Em Poucos Segundos
-              </span>
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-              Assista ao tutorial rápido e descubra como o PokerGTO Pro pode transformar seu jogo.
-            </p>
-          </motion.div>
-
-          <motion.div 
-            className="max-w-4xl mx-auto"
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <div className="relative rounded-3xl overflow-hidden border border-border shadow-2xl shadow-primary/10 bg-card">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent pointer-events-none z-10" />
-              <video 
-                className="w-full aspect-video object-cover bg-muted"
-                autoPlay 
-                loop 
-                muted 
-                playsInline
-                controls
-                preload="auto"
-              >
-                <source src="/videos/tutorial-pokergto.mp4" type="video/mp4" />
-                Seu navegador não suporta vídeo HTML5.
-              </video>
-            </div>
-            
-            <motion.div 
-              className="mt-8 flex flex-col sm:flex-row gap-4 justify-center"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.3 }}
-            >
-              <Button size="lg" onClick={() => navigate("/auth")} className="shadow-lg shadow-primary/25">
-                <Sparkles className="w-4 h-4 mr-2" />
-                Experimentar Grátis
-              </Button>
-              <Button size="lg" variant="outline" onClick={() => document.getElementById("precos")?.scrollIntoView({ behavior: "smooth" })}>
-                Ver Planos
-              </Button>
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
+      {/* Tool Showcase Carousel */}
+      <ToolShowcaseCarousel />
 
       {/* Features Section */}
       <section id="recursos" className="py-24 px-4 relative">
