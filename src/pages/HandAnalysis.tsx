@@ -172,8 +172,32 @@ export default function HandAnalysis() {
     setCustomHeroCards(customHeroCards.filter((_, i) => i !== index));
   };
 
+  // Consolidate all used cards (hero + board) to prevent duplicates in CardPicker
+  const allUsedCards = useMemo(() => {
+    const cards: { rank: string; suit: string }[] = [];
+    
+    // Add hero cards
+    customHeroCards.forEach(card => cards.push(card));
+    
+    // Add board cards from parsedHand
+    if (parsedHand?.communityCards) {
+      // Add flop cards (first 3)
+      parsedHand.communityCards.flop?.forEach(card => cards.push(card));
+      // Add turn card
+      if (parsedHand.communityCards.turn) {
+        cards.push(parsedHand.communityCards.turn);
+      }
+      // Add river card
+      if (parsedHand.communityCards.river) {
+        cards.push(parsedHand.communityCards.river);
+      }
+    }
+    
+    return cards;
+  }, [customHeroCards, parsedHand?.communityCards]);
+
   const isCardUsed = (rank: Rank, suit: Suit) => {
-    return customHeroCards.some(c => c.rank === rank && c.suit === suit);
+    return allUsedCards.some(c => c.rank === rank && c.suit === suit);
   };
 
   // Generate player stats (simulated for demo)
