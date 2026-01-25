@@ -49,15 +49,27 @@ const legalLinks = [
 interface SidebarProps {
   onNavigate?: () => void;
   isMobile?: boolean;
+  collapsed?: boolean;
+  onCollapse?: (collapsed: boolean) => void;
 }
 
-export function Sidebar({ onNavigate, isMobile = false }: SidebarProps) {
+export function Sidebar({ onNavigate, isMobile = false, collapsed: controlledCollapsed, onCollapse }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [isManageLoading, setIsManageLoading] = useState(false);
   const { user, profile, subscription, isAdmin, signOut } = useAuth();
+  
+  // Use controlled state if provided, otherwise use internal state
+  const collapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
+  const setCollapsed = (value: boolean) => {
+    if (onCollapse) {
+      onCollapse(value);
+    } else {
+      setInternalCollapsed(value);
+    }
+  };
 
   const handleLogout = async () => {
     await signOut();
