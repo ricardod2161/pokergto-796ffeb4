@@ -3,30 +3,43 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Check, Crown, Zap, Sparkles, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+interface PlanPricing {
+  monthly: {
+    price: string;
+    priceId: string | null;
+  };
+  yearly: {
+    price: string;
+    priceId: string | null;
+    monthlyEquivalent: string;
+    savings: string;
+  };
+}
+
 interface PlanInfo {
   name: string;
-  price: string;
-  period: string;
   description: string;
-  priceId: string | null;
+  pricing: PlanPricing;
   popular?: boolean;
   features: string[];
   limitations?: string[];
 }
 
-// Stripe price IDs
+// Stripe price IDs - Production
 const PLANS: Record<string, PlanInfo> = {
   free: {
     name: "Free",
-    price: "R$ 0",
-    period: "/mês",
     description: "Para iniciantes explorando GTO",
-    priceId: null,
+    pricing: {
+      monthly: { price: "R$ 0", priceId: null },
+      yearly: { price: "R$ 0", priceId: null, monthlyEquivalent: "R$ 0", savings: "R$ 0" },
+    },
     features: [
       "Ranges básicos pré-flop",
       "5 análises de mãos/dia",
@@ -41,10 +54,16 @@ const PLANS: Record<string, PlanInfo> = {
   },
   pro: {
     name: "Pro",
-    price: "R$ 29,90",
-    period: "/mês",
     description: "Para jogadores sérios em evolução",
-    priceId: "price_1StKFpKBKtRrb6BSNGea1zhp",
+    pricing: {
+      monthly: { price: "R$ 29,90", priceId: "price_1StKFpKBKtRrb6BSNGea1zhp" },
+      yearly: { 
+        price: "R$ 287,04", 
+        priceId: "price_1StKK9KBKtRrb6BSXvmEROGB",
+        monthlyEquivalent: "R$ 23,92",
+        savings: "R$ 71,76"
+      },
+    },
     popular: true,
     features: [
       "Todos os ranges 8-Max",
@@ -57,10 +76,16 @@ const PLANS: Record<string, PlanInfo> = {
   },
   premium: {
     name: "Premium",
-    price: "R$ 59,90",
-    period: "/mês",
     description: "Para profissionais e high stakes",
-    priceId: "price_1StKGKKBKtRrb6BSd0DLRljf",
+    pricing: {
+      monthly: { price: "R$ 59,90", priceId: "price_1StKGKKBKtRrb6BSd0DLRljf" },
+      yearly: { 
+        price: "R$ 575,04", 
+        priceId: "price_1StKKTKBKtRrb6BS0TTJInAj",
+        monthlyEquivalent: "R$ 47,92",
+        savings: "R$ 143,76"
+      },
+    },
     features: [
       "Tudo do Pro, mais:",
       "Análises de IA ilimitadas",
@@ -79,6 +104,7 @@ export default function Pricing() {
   const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(false);
+  const [isYearly, setIsYearly] = useState(true);
 
   // Handle checkout result
   useEffect(() => {
@@ -116,8 +142,9 @@ export default function Pricing() {
 
   const handleSubscribe = async (planKey: string) => {
     const plan = PLANS[planKey as keyof typeof PLANS];
+    const priceId = isYearly ? plan.pricing.yearly.priceId : plan.pricing.monthly.priceId;
     
-    if (!plan.priceId) {
+    if (!priceId) {
       toast.info("Você já está no plano Free!");
       return;
     }
@@ -132,7 +159,7 @@ export default function Pricing() {
 
     try {
       const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: { priceId: plan.priceId },
+        body: { priceId },
       });
 
       if (error) throw error;
@@ -175,6 +202,10 @@ export default function Pricing() {
     const isCurrentPlan = currentPlan === planKey;
     const isPremium = planKey === "premium";
     const isPro = planKey === "pro";
+    const isFree = planKey === "free";
+
+    const displayPrice = isYearly ? plan.pricing.yearly.monthlyEquivalent : plan.pricing.monthly.price;
+    const totalPrice = isYearly ? plan.pricing.yearly.price : null;
 
     return (
       <div
@@ -182,7 +213,7 @@ export default function Pricing() {
           "relative rounded-2xl border p-6 lg:p-8 transition-all duration-300",
           plan.popular
             ? "border-primary bg-primary/5 shadow-lg shadow-primary/10"
-            : "border-[hsl(220,15%,15%)] bg-[hsl(220,18%,8%)]",
+            : "border-border bg-card",
           isCurrentPlan && "ring-2 ring-primary"
         )}
       >
@@ -195,6 +226,12 @@ export default function Pricing() {
         {isCurrentPlan && (
           <Badge className="absolute -top-3 right-4 bg-success">
             Seu Plano
+          </Badge>
+        )}
+
+        {isYearly && !isFree && (
+          <Badge className="absolute top-4 right-4 bg-amber-500/20 text-amber-400 border-amber-500/30">
+            -20%
           </Badge>
         )}
 
@@ -217,9 +254,20 @@ export default function Pricing() {
           <p className="text-sm text-muted-foreground mt-1">{plan.description}</p>
 
           <div className="mt-4">
-            <span className="text-4xl font-bold text-foreground">{plan.price}</span>
-            <span className="text-muted-foreground">{plan.period}</span>
+            <span className="text-4xl font-bold text-foreground">{displayPrice}</span>
+            <span className="text-muted-foreground">/mês</span>
           </div>
+
+          {isYearly && !isFree && (
+            <div className="mt-2 space-y-1">
+              <p className="text-xs text-muted-foreground">
+                Cobrado {totalPrice}/ano
+              </p>
+              <p className="text-xs text-success font-medium">
+                Economize {plan.pricing.yearly.savings}/ano
+              </p>
+            </div>
+          )}
         </div>
 
         <ul className="space-y-3 mb-8">
@@ -244,7 +292,7 @@ export default function Pricing() {
           currentPlan !== "free" ? (
             <Button
               variant="outline"
-              className="w-full border-[hsl(220,15%,20%)]"
+              className="w-full"
               onClick={handleManageSubscription}
               disabled={isLoading === "manage"}
             >
@@ -301,6 +349,32 @@ export default function Pricing() {
               <span className="text-sm">Verificando assinatura...</span>
             </div>
           )}
+
+          {/* Billing Toggle */}
+          <div className="mt-6 flex items-center justify-center gap-4">
+            <span className={cn(
+              "text-sm font-medium transition-colors",
+              !isYearly ? "text-foreground" : "text-muted-foreground"
+            )}>
+              Mensal
+            </span>
+            <Switch
+              checked={isYearly}
+              onCheckedChange={setIsYearly}
+              className="data-[state=checked]:bg-primary"
+            />
+            <span className={cn(
+              "text-sm font-medium transition-colors",
+              isYearly ? "text-foreground" : "text-muted-foreground"
+            )}>
+              Anual
+            </span>
+            {isYearly && (
+              <Badge className="bg-success/20 text-success border-success/30 ml-2">
+                Economize 20%
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Plans Grid */}
