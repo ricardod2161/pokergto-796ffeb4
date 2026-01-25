@@ -25,7 +25,7 @@ interface SubscriptionManagementCardProps {
 }
 
 export function SubscriptionManagementCard({ onRefresh }: SubscriptionManagementCardProps) {
-  const { subscription, refreshProfile } = useAuth();
+  const { subscription, refreshProfile, user } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [showPlanChangeModal, setShowPlanChangeModal] = useState(false);
@@ -35,6 +35,9 @@ export function SubscriptionManagementCard({ onRefresh }: SubscriptionManagement
   const status = subscription?.status || "active";
   const periodEnd = subscription?.current_period_end;
   const billingPeriod = subscription?.billing_period || "monthly";
+  
+  // Check if user has a Stripe customer link
+  const hasStripeCustomer = subscription?.stripe_customer_id != null;
 
   const getPlanIcon = () => {
     if (plan === "premium") return <Crown className="h-6 w-6 text-amber-500" />;
@@ -131,6 +134,34 @@ export function SubscriptionManagementCard({ onRefresh }: SubscriptionManagement
     }
   };
 
+  // Cancel internal subscription (for manual/promotional plans without Stripe)
+  const handleInternalCancel = async () => {
+    if (!user) return;
+    
+    setIsLoading("cancel");
+    try {
+      const { error } = await supabase
+        .from("subscriptions")
+        .update({ 
+          plan: "free", 
+          status: "canceled",
+          current_period_end: new Date().toISOString()
+        })
+        .eq("user_id", user.id);
+      
+      if (error) throw error;
+      
+      await refreshProfile();
+      toast.success("Assinatura cancelada com sucesso");
+      onRefresh?.();
+    } catch (error) {
+      console.error("Error canceling subscription:", error);
+      toast.error("Erro ao cancelar assinatura");
+    } finally {
+      setIsLoading(null);
+    }
+  };
+
   const billingInfo = getNextBillingInfo();
 
   // Free plan - show upgrade prompt
@@ -153,6 +184,71 @@ export function SubscriptionManagementCard({ onRefresh }: SubscriptionManagement
           >
             <Zap className="mr-2 h-4 w-4" />
             Fazer Upgrade
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Manual/promotional subscription without Stripe - show simplified UI
+  if (!hasStripeCustomer) {
+    return (
+      <Card className="border-border/50 bg-card/50">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              {getPlanIcon()}
+              Plano {getPlanName()}
+            </CardTitle>
+            <Badge variant="secondary" className="text-xs">
+              Cortesia
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg p-3 bg-amber-500/10 border border-amber-500/20">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium">Plano Promocional</p>
+                <p className="text-sm text-muted-foreground">
+                  Sua assinatura foi ativada manualmente e não está vinculada ao Stripe.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/pricing")}
+              className="justify-center"
+            >
+              <CreditCard className="mr-2 h-4 w-4" />
+              Assinar via Stripe
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleInternalCancel}
+              disabled={isLoading === "cancel"}
+              className="justify-center text-destructive hover:text-destructive"
+            >
+              <AlertTriangle className="mr-2 h-4 w-4" />
+              {isLoading === "cancel" ? "Cancelando..." : "Cancelar Plano"}
+            </Button>
+          </div>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRefreshStatus}
+            disabled={isLoading === "refresh"}
+            className="w-full text-muted-foreground"
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading === "refresh" ? "animate-spin" : ""}`} />
+            Sincronizar com Stripe
           </Button>
         </CardContent>
       </Card>
@@ -273,6 +369,7 @@ export function SubscriptionManagementCard({ onRefresh }: SubscriptionManagement
           onOpenChange={setShowCancelModal}
           plan={plan}
           periodEnd={periodEnd || null}
+          hasStripeCustomer={hasStripeCustomer}
         />
       )}
     </>

@@ -23,12 +23,14 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface CancelConfirmationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   plan: "pro" | "premium";
   periodEnd: string | null;
+  hasStripeCustomer?: boolean;
 }
 
 const proFeatures = [
@@ -50,8 +52,10 @@ export function CancelConfirmationModal({
   onOpenChange,
   plan,
   periodEnd,
+  hasStripeCustomer = true,
 }: CancelConfirmationModalProps) {
   const navigate = useNavigate();
+  const { user, refreshProfile } = useAuth();
   const [step, setStep] = useState<Step>("retention");
   const [isLoading, setIsLoading] = useState(false);
   const features = plan === "premium" ? premiumFeatures : proFeatures;
@@ -121,6 +125,42 @@ export function CancelConfirmationModal({
       toast.error("Erro ao abrir portal de gerenciamento");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Internal cancellation for manual/promotional subscriptions
+  const handleInternalCancel = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from("subscriptions")
+        .update({ 
+          plan: "free", 
+          status: "canceled",
+          current_period_end: new Date().toISOString()
+        })
+        .eq("user_id", user.id);
+      
+      if (error) throw error;
+      
+      await refreshProfile();
+      toast.success("Assinatura cancelada com sucesso");
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error canceling subscription:", error);
+      toast.error("Erro ao cancelar assinatura");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleConfirmCancel = async () => {
+    if (hasStripeCustomer) {
+      await handleOpenPortal();
+    } else {
+      await handleInternalCancel();
     }
   };
 
@@ -258,10 +298,13 @@ export function CancelConfirmationModal({
           <Button
             variant="ghost"
             className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={handleOpenPortal}
+            onClick={handleConfirmCancel}
             disabled={isLoading}
           >
-            {isLoading ? "Abrindo portal..." : "Confirmar Cancelamento"}
+            {isLoading 
+              ? (hasStripeCustomer ? "Abrindo portal..." : "Cancelando...") 
+              : "Confirmar Cancelamento"
+            }
           </Button>
         </DialogFooter>
       </DialogContent>
