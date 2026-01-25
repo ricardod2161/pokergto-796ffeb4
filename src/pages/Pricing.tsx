@@ -44,7 +44,7 @@ const PLANS: Record<string, PlanInfo> = {
     price: "R$ 29,90",
     period: "/mês",
     description: "Para jogadores sérios em evolução",
-    priceId: "price_1StGl2GdSKclseUt3DQle7sp",
+    priceId: "price_1StKFpKBKtRrb6BSNGea1zhp",
     popular: true,
     features: [
       "Todos os ranges 8-Max",
@@ -60,7 +60,7 @@ const PLANS: Record<string, PlanInfo> = {
     price: "R$ 59,90",
     period: "/mês",
     description: "Para profissionais e high stakes",
-    priceId: "price_1StGlTGdSKclseUttmBnJECn",
+    priceId: "price_1StKGKKBKtRrb6BSd0DLRljf",
     features: [
       "Tudo do Pro, mais:",
       "Análises de IA ilimitadas",
