@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { SubscriptionManagementCard } from "@/components/subscription/SubscriptionManagementCard";
 
 interface PlanPricing {
   monthly: {
@@ -101,21 +102,30 @@ const PLANS: Record<string, PlanInfo> = {
 export default function Pricing() {
   const { user, subscription, refreshProfile } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(false);
   const [isYearly, setIsYearly] = useState(true);
 
-  // Handle checkout result
+  // Handle checkout result and portal return
   useEffect(() => {
     const checkoutResult = searchParams.get("checkout");
+    const portalReturn = searchParams.get("portal_return");
+    
     if (checkoutResult === "success") {
       toast.success("Pagamento realizado com sucesso!", {
         description: "Sua assinatura está sendo processada...",
       });
       handleCheckSubscription();
+      // Clear the query param
+      setSearchParams({});
     } else if (checkoutResult === "canceled") {
       toast.info("Checkout cancelado");
+      setSearchParams({});
+    } else if (portalReturn) {
+      toast.info("Verificando status da assinatura...");
+      handleCheckSubscription();
+      setSearchParams({});
     }
   }, [searchParams]);
 
@@ -183,27 +193,14 @@ export default function Pricing() {
     try {
       const { data, error } = await supabase.functions.invoke("customer-portal");
 
-      if (error) {
-        const errorMessage = error.message || "";
-        if (errorMessage.includes("No Stripe customer")) {
-          toast.error("Você ainda não tem uma assinatura ativa no Stripe", {
-            description: "Complete um checkout primeiro para gerenciar sua assinatura.",
-          });
-          setIsLoading(null);
-          return;
-        }
-        throw error;
-      }
+      if (error) throw error;
 
-      if (data?.error) {
-        if (data.error.includes("No Stripe customer")) {
-          toast.error("Você ainda não tem uma assinatura ativa no Stripe", {
-            description: "Complete um checkout primeiro para gerenciar sua assinatura.",
-          });
-          setIsLoading(null);
-          return;
-        }
-        throw new Error(data.error);
+      if (data?.code === "NO_STRIPE_CUSTOMER") {
+        toast.error("Nenhum registro encontrado no Stripe", {
+          description: "Complete um checkout primeiro para gerenciar sua assinatura.",
+        });
+        setIsLoading(null);
+        return;
       }
 
       if (data?.url) {
@@ -391,12 +388,19 @@ export default function Pricing() {
               Anual
             </span>
             {isYearly && (
-              <Badge className="bg-success/20 text-success border-success/30 ml-2">
+              <Badge className="bg-green-500/20 text-green-500 border-green-500/30 ml-2">
                 Economize 20%
               </Badge>
             )}
           </div>
         </div>
+
+        {/* Current Subscription Management Card */}
+        {subscription && subscription.plan !== "free" && (
+          <div className="max-w-md mx-auto">
+            <SubscriptionManagementCard onRefresh={handleCheckSubscription} />
+          </div>
+        )}
 
         {/* Plans Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">

@@ -42,19 +42,48 @@ serve(async (req) => {
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    
-    if (customers.data.length === 0) {
-      throw new Error("No Stripe customer found for this user");
+
+    // OPTIMIZATION: Try to get stripe_customer_id from database first
+    const { data: subscriptionData } = await supabaseClient
+      .from("subscriptions")
+      .select("stripe_customer_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    let customerId = subscriptionData?.stripe_customer_id;
+    logStep("Database lookup", { hasStoredCustomerId: !!customerId });
+
+    // If not in database, search Stripe by email
+    if (!customerId) {
+      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+      
+      if (customers.data.length === 0) {
+        logStep("No Stripe customer found");
+        return new Response(JSON.stringify({ 
+          error: "No Stripe customer found for this user",
+          code: "NO_STRIPE_CUSTOMER"
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200, // Return 200 so frontend can handle gracefully
+        });
+      }
+      
+      customerId = customers.data[0].id;
+      logStep("Found customer via Stripe API, saving to DB", { customerId });
+
+      // Save to database for next time
+      await supabaseClient
+        .from("subscriptions")
+        .update({ stripe_customer_id: customerId })
+        .eq("user_id", user.id);
     }
-    
-    const customerId = customers.data[0].id;
-    logStep("Found Stripe customer", { customerId });
+
+    logStep("Using Stripe customer", { customerId });
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: `${origin}/dashboard`,
+      return_url: `${origin}/pricing?portal_return=true`,
     });
     logStep("Customer portal session created", { sessionId: portalSession.id, url: portalSession.url });
 
