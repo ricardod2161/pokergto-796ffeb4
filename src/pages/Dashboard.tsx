@@ -83,17 +83,11 @@ export default function Dashboard() {
     <div className="min-h-screen bg-[hsl(220,20%,6%)]">
       <div className="p-6 lg:p-8 space-y-6">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Painel Principal</h1>
-            <p className="text-sm text-muted-foreground">
-              Bem-vindo de volta. Aqui está seu resumo de desempenho.
-            </p>
-          </div>
-          <Button variant="gold" size="sm" className="w-fit">
-            <Upload className="w-4 h-4 mr-2" />
-            Importar Mãos
-          </Button>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Painel Principal</h1>
+          <p className="text-sm text-muted-foreground">
+            Bem-vindo de volta. Aqui está seu resumo de desempenho.
+          </p>
         </div>
 
         {/* Stats Bar */}
