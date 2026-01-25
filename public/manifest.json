@@ -1,0 +1,28 @@
+{
+  "name": "Poker GTO - Assistente de Poker com IA",
+  "short_name": "PokerGTO",
+  "description": "Melhore seu jogo de poker com análise GTO, calculadora de equity, ranges e assistente de IA profissional.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0b",
+  "theme_color": "#10b981",
+  "orientation": "any",
+  "categories": ["games", "utilities", "education"],
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}
