@@ -46,7 +46,12 @@ const legalLinks = [
   { name: "Privacidade", href: "/privacy", icon: Shield },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void;
+  isMobile?: boolean;
+}
+
+export function Sidebar({ onNavigate, isMobile = false }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
@@ -56,7 +61,12 @@ export function Sidebar() {
 
   const handleLogout = async () => {
     await signOut();
+    onNavigate?.();
     navigate("/auth");
+  };
+
+  const handleNavClick = () => {
+    onNavigate?.();
   };
 
   // Check if user has Stripe customer link
@@ -64,6 +74,7 @@ export function Sidebar() {
 
   const handleManageSubscription = async () => {
     if (!subscription || subscription.plan === "free") {
+      onNavigate?.();
       navigate("/pricing");
       return;
     }
@@ -73,6 +84,7 @@ export function Sidebar() {
       toast.info("Para gerenciar sua assinatura, vincule ao Stripe", {
         description: "Acesse a página de planos para sincronizar."
       });
+      onNavigate?.();
       navigate("/pricing");
       return;
     }
@@ -91,6 +103,7 @@ export function Sidebar() {
       
       if (data?.code === "NO_STRIPE_CUSTOMER") {
         toast.error("Nenhum registro encontrado no Stripe");
+        onNavigate?.();
         navigate("/pricing");
         return;
       }
@@ -123,26 +136,33 @@ export function Sidebar() {
     }
   };
 
+  // In mobile mode (inside Sheet), don't use fixed positioning
+  // On desktop, use fixed positioning
+  const sidebarClasses = cn(
+    "h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 flex flex-col",
+    !isMobile && "fixed left-0 top-0 z-40",
+    isMobile ? "w-full" : (collapsed ? "w-16" : "w-64")
+  );
+
   return (
-    <aside className={cn(
-      "fixed left-0 top-0 z-40 h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300",
-      collapsed ? "w-16" : "w-64"
-    )}>
+    <aside className={sidebarClasses}>
       <div className="flex h-full flex-col">
-        {/* Logo */}
-        <div className={cn(
-          "flex h-16 items-center border-b border-sidebar-border px-4",
-          collapsed ? "justify-center" : "gap-3"
-        )}>
-          {collapsed ? (
-            <Logo variant="icon" size="md" className="rounded-lg" />
-          ) : (
-            <Logo variant="full" size="lg" />
-          )}
-        </div>
+        {/* Logo - Only show on desktop */}
+        {!isMobile && (
+          <div className={cn(
+            "flex h-16 items-center border-b border-sidebar-border px-4",
+            collapsed ? "justify-center" : "gap-3"
+          )}>
+            {collapsed ? (
+              <Logo variant="icon" size="md" className="rounded-lg" />
+            ) : (
+              <Logo variant="full" size="lg" />
+            )}
+          </div>
+        )}
 
         {/* User Info */}
-        {user && !collapsed && (
+        {user && (isMobile || !collapsed) && (
           <div className="px-3 py-3 border-b border-sidebar-border">
             <div className="flex items-center gap-3 p-2 rounded-lg bg-sidebar-accent/50">
               <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-medium">
@@ -224,16 +244,17 @@ export function Sidebar() {
               <Link
                 key={item.name}
                 to={item.href}
+                onClick={handleNavClick}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   isActive
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
-                  collapsed && "justify-center px-2"
+                  !isMobile && collapsed && "justify-center px-2"
                 )}
               >
                 <item.icon className={cn("h-5 w-5 shrink-0", isActive && "text-primary")} />
-                {!collapsed && <span>{item.name}</span>}
+                {(isMobile || !collapsed) && <span>{item.name}</span>}
               </Link>
             );
           })}
@@ -242,38 +263,41 @@ export function Sidebar() {
           {isAdmin && (
             <Link
               to="/admin"
+              onClick={handleNavClick}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 mt-4 border-t border-sidebar-border pt-4",
                 location.pathname === "/admin"
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
-                collapsed && "justify-center px-2"
+                !isMobile && collapsed && "justify-center px-2"
               )}
             >
               <Shield className={cn("h-5 w-5 shrink-0", location.pathname === "/admin" && "text-primary")} />
-              {!collapsed && <span>Admin</span>}
+              {(isMobile || !collapsed) && <span>Admin</span>}
             </Link>
           )}
         </nav>
 
-        {/* Collapse button */}
-        <div className="border-t border-sidebar-border p-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCollapsed(!collapsed)}
-            className={cn("w-full", collapsed ? "px-2" : "justify-start")}
-          >
-            {collapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <>
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                <span>Recolher</span>
-              </>
-            )}
-          </Button>
-        </div>
+        {/* Collapse button - Only on desktop */}
+        {!isMobile && (
+          <div className="border-t border-sidebar-border p-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCollapsed(!collapsed)}
+              className={cn("w-full", collapsed ? "px-2" : "justify-start")}
+            >
+              {collapsed ? (
+                <ChevronRight className="h-4 w-4" />
+              ) : (
+                <>
+                  <ChevronLeft className="h-4 w-4 mr-2" />
+                  <span>Recolher</span>
+                </>
+              )}
+            </Button>
+          </div>
+        )}
 
         {/* Legal Links */}
         <div className="border-t border-sidebar-border p-2">
@@ -281,13 +305,14 @@ export function Sidebar() {
             <Link
               key={item.name}
               to={item.href}
+              onClick={handleNavClick}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:text-foreground",
-                collapsed && "justify-center px-2"
+                !isMobile && collapsed && "justify-center px-2"
               )}
             >
               <item.icon className="h-3.5 w-3.5" />
-              {!collapsed && <span>{item.name}</span>}
+              {(isMobile || !collapsed) && <span>{item.name}</span>}
             </Link>
           ))}
         </div>
@@ -298,11 +323,11 @@ export function Sidebar() {
             onClick={handleLogout}
             className={cn(
               "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:bg-destructive/10 hover:text-destructive w-full",
-              collapsed && "justify-center px-2"
+              !isMobile && collapsed && "justify-center px-2"
             )}
           >
             <LogOut className="h-5 w-5" />
-            {!collapsed && <span>Sair</span>}
+            {(isMobile || !collapsed) && <span>Sair</span>}
           </button>
         </div>
       </div>
