@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { motion, type Easing } from "framer-motion";
+import { useState, useEffect } from "react";
 import { 
   ChevronRight, 
   Check, 
@@ -19,12 +20,19 @@ import {
   Award,
   Rocket,
   Crown,
-  Gift
+  Gift,
+  Download,
+  Smartphone
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/Logo";
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
 
 const easeOut: Easing = [0.0, 0.0, 0.2, 1];
 
@@ -199,7 +207,35 @@ const stats = [
 
 export default function Landing() {
   const navigate = useNavigate();
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
 
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      setIsInstallable(true);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === "accepted") {
+        setIsInstallable(false);
+      }
+      setDeferredPrompt(null);
+    } else {
+      navigate("/install");
+    }
+  };
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Header/Nav */}
@@ -237,12 +273,23 @@ export default function Landing() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" onClick={() => navigate("/auth")} className="hidden sm:flex">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleInstall}
+                className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10 hidden sm:flex"
+              >
+                <Download className="w-4 h-4" />
+                Instalar App
+              </Button>
+            </motion.div>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/auth")} className="hidden md:flex">
               Entrar
             </Button>
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button onClick={() => navigate("/auth")}>
+              <Button onClick={() => navigate("/auth")} size="sm">
                 Começar Grátis
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
