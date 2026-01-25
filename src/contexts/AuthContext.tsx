@@ -138,10 +138,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    
+    // Reset daily usage on successful login to give user fresh credits
+    if (!error && data.user) {
+      await supabase.rpc("reset_user_daily_usage", {
+        p_user_id: data.user.id,
+      });
+    }
+    
     return { error };
   };
 
