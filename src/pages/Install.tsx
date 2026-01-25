@@ -17,7 +17,9 @@ import {
   ArrowRight,
   Share2,
   Plus,
-  MoreVertical
+  MoreVertical,
+  MousePointer,
+  ExternalLink
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Logo } from "@/components/ui/Logo";
@@ -64,10 +66,22 @@ const staggerChildren = {
   }
 };
 
+// Detectar navegador
+const getBrowserInfo = () => {
+  const userAgent = navigator.userAgent;
+  if (userAgent.includes("Edg")) return { name: "Edge", icon: "edge" };
+  if (userAgent.includes("Chrome")) return { name: "Chrome", icon: "chrome" };
+  if (userAgent.includes("Firefox")) return { name: "Firefox", icon: "firefox" };
+  if (userAgent.includes("Safari") && !userAgent.includes("Chrome")) return { name: "Safari", icon: "safari" };
+  return { name: "Navegador", icon: "browser" };
+};
+
 const Install = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [browserInfo, setBrowserInfo] = useState({ name: "Chrome", icon: "chrome" });
 
   useEffect(() => {
     if (window.matchMedia("(display-mode: standalone)").matches) {
@@ -75,7 +89,11 @@ const Install = () => {
     }
 
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isMobileDevice = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
     setIsIOS(isIOSDevice);
+    setIsMobile(isMobileDevice);
+    setBrowserInfo(getBrowserInfo());
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -230,10 +248,10 @@ const Install = () => {
                 <div className="space-y-5">
                   <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
                     <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-                      <Chrome className="w-6 h-6 text-primary" />
+                      {isMobile ? <Smartphone className="w-6 h-6 text-primary" /> : <Monitor className="w-6 h-6 text-primary" />}
                     </div>
                     <div>
-                      <p className="font-semibold text-foreground">Android / Desktop</p>
+                      <p className="font-semibold text-foreground">{isMobile ? "Android" : "Desktop"}</p>
                       <p className="text-sm text-muted-foreground">Instalação com um clique</p>
                     </div>
                   </div>
@@ -251,29 +269,111 @@ const Install = () => {
                       Instalar Agora
                     </Button>
                   </motion.div>
+                  
+                  <p className="text-xs text-center text-muted-foreground">
+                    Clique no botão acima e confirme a instalação
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-5">
-                  <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-muted/50 to-muted/30 border border-border/50">
-                    <div className="w-12 h-12 rounded-xl bg-background flex items-center justify-center">
-                      <Monitor className="w-6 h-6 text-foreground" />
+                  {/* Header Desktop */}
+                  <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+                    <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                      <Monitor className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                      <p className="font-semibold text-foreground">Instalação Manual</p>
-                      <p className="text-sm text-muted-foreground">Use o menu do navegador</p>
+                      <p className="font-semibold text-foreground">Instalação no {browserInfo.name}</p>
+                      <p className="text-sm text-muted-foreground">Siga os passos simples abaixo</p>
                     </div>
                   </div>
-                  
-                  <div className="p-4 rounded-lg bg-muted/30 border border-border/30">
+
+                  {/* Passos para Desktop */}
+                  <div className="space-y-3">
+                    <motion.div 
+                      className="flex items-start gap-4 p-4 rounded-lg bg-muted/30 border border-border/30"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 }}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shrink-0">
+                        1
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-foreground font-medium">
+                          Olhe na barra de endereço do navegador
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Procure o ícone <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-muted rounded text-foreground"><Download className="w-3 h-3" /></span> ou <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-muted rounded text-foreground"><Plus className="w-3 h-3" /></span> no lado direito
+                        </p>
+                      </div>
+                      <MousePointer className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                    </motion.div>
+
+                    <motion.div 
+                      className="flex items-start gap-4 p-4 rounded-lg bg-muted/30 border border-border/30"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shrink-0">
+                        2
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-foreground font-medium">
+                          Clique em "Instalar" ou "Adicionar"
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Um popup vai aparecer pedindo confirmação
+                        </p>
+                      </div>
+                      <ExternalLink className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                    </motion.div>
+
+                    <motion.div 
+                      className="flex items-start gap-4 p-4 rounded-lg bg-muted/30 border border-border/30"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.3 }}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shrink-0">
+                        3
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-foreground font-medium">
+                          Confirme a instalação
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          O app será adicionado ao seu desktop/menu
+                        </p>
+                      </div>
+                      <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                    </motion.div>
+                  </div>
+
+                  {/* Alternativa via menu */}
+                  <div className="p-4 rounded-lg bg-muted/20 border border-border/30">
                     <div className="flex items-center gap-2 mb-2">
                       <MoreVertical className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-medium text-foreground">Menu do Navegador</span>
+                      <span className="text-sm font-medium text-foreground">Alternativa: Menu do Navegador</span>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Procure por <span className="text-foreground font-medium">"Instalar aplicativo"</span> ou{" "}
-                      <span className="text-foreground font-medium">"Adicionar à tela inicial"</span>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Clique nos <span className="text-foreground font-medium">3 pontos ⋮</span> no canto superior direito → 
+                      <span className="text-foreground font-medium"> "Instalar Poker GTO"</span> ou 
+                      <span className="text-foreground font-medium"> "Salvar e compartilhar" → "Instalar como app"</span>
                     </p>
                   </div>
+
+                  {/* Dica visual */}
+                  <motion.div 
+                    className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-center"
+                    animate={{ opacity: [0.7, 1, 0.7] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <p className="text-xs text-primary font-medium flex items-center justify-center gap-2">
+                      <Download className="w-4 h-4" />
+                      Procure este ícone na barra de endereço ↑
+                    </p>
+                  </motion.div>
                 </div>
               )}
             </CardContent>
