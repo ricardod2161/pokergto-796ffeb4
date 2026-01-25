@@ -256,40 +256,92 @@ export function parseHandHistory(handHistory: string): ParsedHand | null {
   }
 }
 
-// Generate sample hand history for demo
+// Generate sample hand history for demo with random cards and actions
 export function generateSampleHand(): ParsedHand {
+  const usedCards = new Set<string>();
+  
+  const getRandomCard = (): { rank: CardRank; suit: CardSuit } => {
+    const allRanks: CardRank[] = ["A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"];
+    const allSuits: CardSuit[] = ["hearts", "diamonds", "clubs", "spades"];
+    let card: { rank: CardRank; suit: CardSuit };
+    do {
+      const rank = allRanks[Math.floor(Math.random() * allRanks.length)];
+      const suit = allSuits[Math.floor(Math.random() * allSuits.length)];
+      card = { rank, suit };
+    } while (usedCards.has(`${card.rank}${card.suit}`));
+    usedCards.add(`${card.rank}${card.suit}`);
+    return card;
+  };
+
+  // Generate hero cards - prefer premium hands for interesting demos
+  const premiumHands: { rank: CardRank; suit: CardSuit }[][] = [
+    [{ rank: "A", suit: "spades" }, { rank: "K", suit: "hearts" }],
+    [{ rank: "Q", suit: "diamonds" }, { rank: "Q", suit: "clubs" }],
+    [{ rank: "A", suit: "hearts" }, { rank: "Q", suit: "hearts" }],
+    [{ rank: "J", suit: "spades" }, { rank: "J", suit: "diamonds" }],
+    [{ rank: "K", suit: "clubs" }, { rank: "Q", suit: "spades" }],
+    [{ rank: "A", suit: "diamonds" }, { rank: "J", suit: "diamonds" }],
+    [{ rank: "T", suit: "hearts" }, { rank: "T", suit: "clubs" }],
+    [{ rank: "9", suit: "spades" }, { rank: "9", suit: "hearts" }],
+  ];
+  const heroHand = premiumHands[Math.floor(Math.random() * premiumHands.length)];
+  heroHand.forEach(c => usedCards.add(`${c.rank}${c.suit}`));
+
+  // Generate random board
+  const flopCards = [getRandomCard(), getRandomCard(), getRandomCard()];
+  const turnCard = getRandomCard();
+  const riverCard = getRandomCard();
+
+  // Generate random actions with varying bet sizes
+  const openSizes = [6, 7, 8, 5];
+  const openSize = openSizes[Math.floor(Math.random() * openSizes.length)];
+  const threeBetMultiplier = Math.random() > 0.5 ? 3 : 3.5;
+  const threeBetSize = Math.round(openSize * threeBetMultiplier);
+  
+  const flopBetSizes = [18, 22, 25, 30, 15];
+  const flopBetSize = flopBetSizes[Math.floor(Math.random() * flopBetSizes.length)];
+  
+  const turnBetSizes = [35, 45, 55, 40, 50];
+  const turnBetSize = turnBetSizes[Math.floor(Math.random() * turnBetSizes.length)];
+
+  // Random pot size based on action progression
+  const potSizes = [85, 120, 150, 180, 220, 245, 280];
+  const potSize = potSizes[Math.floor(Math.random() * potSizes.length)];
+
+  const actions: Action[] = [
+    { player: "Vilão", action: "raise", amount: openSize, street: "preflop", isHero: false },
+    { player: "Herói", action: "raise", amount: threeBetSize, street: "preflop", isHero: true },
+    { player: "Vilão", action: "call", amount: threeBetSize - openSize, street: "preflop", isHero: false },
+    { player: "Vilão", action: "check", street: "flop", isHero: false },
+    { player: "Herói", action: "bet", amount: flopBetSize, street: "flop", isHero: true },
+    { player: "Vilão", action: "call", amount: flopBetSize, street: "flop", isHero: false },
+  ];
+
+  // Randomly add turn action
+  if (Math.random() > 0.3) {
+    actions.push({ player: "Vilão", action: "check", street: "turn", isHero: false });
+    actions.push({ player: "Herói", action: "bet", amount: turnBetSize, street: "turn", isHero: true });
+  }
+
   return {
     site: "Demo",
-    handId: "123456789",
+    handId: String(Math.floor(Math.random() * 999999999)),
     gameType: "Hold'em No Limit",
     blinds: { sb: 1, bb: 2 },
     players: [
-      { name: "Herói", position: "BTN", stack: 500, cards: [{ rank: "A", suit: "spades" }, { rank: "K", suit: "hearts" }] },
+      { name: "Herói", position: "BTN", stack: 500, cards: heroHand },
       { name: "Vilão", position: "BB", stack: 485 },
     ],
-    hero: { name: "Herói", position: "BTN", stack: 500, cards: [{ rank: "A", suit: "spades" }, { rank: "K", suit: "hearts" }] },
+    hero: { name: "Herói", position: "BTN", stack: 500, cards: heroHand },
     heroPosition: "BTN",
-    heroCards: [{ rank: "A", suit: "spades" }, { rank: "K", suit: "hearts" }],
+    heroCards: heroHand,
     communityCards: {
-      flop: [
-        { rank: "K", suit: "diamonds" },
-        { rank: "7", suit: "clubs" },
-        { rank: "2", suit: "spades" },
-      ],
-      turn: { rank: "Q", suit: "hearts" },
-      river: { rank: "3", suit: "diamonds" },
+      flop: flopCards,
+      turn: turnCard,
+      river: riverCard,
     },
-    actions: [
-      { player: "Vilão", action: "raise", amount: 6, street: "preflop", isHero: false },
-      { player: "Herói", action: "raise", amount: 18, street: "preflop", isHero: true },
-      { player: "Vilão", action: "call", amount: 12, street: "preflop", isHero: false },
-      { player: "Vilão", action: "check", street: "flop", isHero: false },
-      { player: "Herói", action: "bet", amount: 22, street: "flop", isHero: true },
-      { player: "Vilão", action: "call", amount: 22, street: "flop", isHero: false },
-      { player: "Vilão", action: "check", street: "turn", isHero: false },
-      { player: "Herói", action: "bet", amount: 45, street: "turn", isHero: true },
-    ],
-    potSize: 245,
+    actions,
+    potSize,
     winner: null,
     showdown: false,
   };
