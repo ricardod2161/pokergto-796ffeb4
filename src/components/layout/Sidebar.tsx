@@ -14,7 +14,8 @@ import {
   Shield,
   CreditCard,
   Crown,
-  FileText
+  FileText,
+  Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -22,6 +23,9 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Logo } from "@/components/ui/Logo";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { CancelConfirmationModal } from "@/components/subscription/CancelConfirmationModal";
 
 const navigation = [
   { name: "Painel", href: "/dashboard", icon: LayoutDashboard },
@@ -44,11 +48,41 @@ export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [isManageLoading, setIsManageLoading] = useState(false);
   const { user, profile, subscription, isAdmin, signOut } = useAuth();
 
   const handleLogout = async () => {
     await signOut();
     navigate("/auth");
+  };
+
+  const handleManageSubscription = async () => {
+    if (!subscription || subscription.plan === "free") {
+      navigate("/pricing");
+      return;
+    }
+
+    // If subscription is active (not canceled), show cancel confirmation modal
+    if (subscription.status === "active") {
+      setShowCancelModal(true);
+      return;
+    }
+
+    // If already canceled, go directly to portal to reactivate
+    setIsManageLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("customer-portal");
+      if (error) throw error;
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      }
+    } catch (error) {
+      console.error("Error opening customer portal:", error);
+      toast.error("Erro ao abrir portal de gerenciamento");
+    } finally {
+      setIsManageLoading(false);
+    }
   };
 
   const getPlanBadge = () => {
@@ -99,9 +133,26 @@ export function Sidebar() {
                 </p>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   {getPlanBadge()}
+                  {subscription?.status === "canceled" && (
+                    <Badge variant="outline" className="text-[9px] px-1 text-warning border-warning/30">
+                      Cancelado
+                    </Badge>
+                  )}
                 </div>
               </div>
             </div>
+            
+            {/* Manage Subscription Button */}
+            {subscription && subscription.plan !== "free" && (
+              <button
+                onClick={handleManageSubscription}
+                disabled={isManageLoading}
+                className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-sidebar-accent transition-colors"
+              >
+                <Settings className="h-3 w-3" />
+                {subscription.status === "canceled" ? "Reativar Plano" : "Gerenciar Plano"}
+              </button>
+            )}
           </div>
         )}
 
@@ -197,6 +248,16 @@ export function Sidebar() {
           </button>
         </div>
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      {subscription && (subscription.plan === "pro" || subscription.plan === "premium") && (
+        <CancelConfirmationModal
+          open={showCancelModal}
+          onOpenChange={setShowCancelModal}
+          plan={subscription.plan}
+          periodEnd={subscription.current_period_end}
+        />
+      )}
     </aside>
   );
 }

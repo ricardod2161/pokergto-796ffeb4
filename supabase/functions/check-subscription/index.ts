@@ -66,24 +66,38 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
-    const subscriptions = await stripe.subscriptions.list({
+    // Check for active subscriptions first
+    const activeSubscriptions = await stripe.subscriptions.list({
       customer: customerId,
       status: "active",
       limit: 1,
     });
 
-    const hasActiveSub = subscriptions.data.length > 0;
+    // Also check for canceled subscriptions (still active until period end)
+    const canceledSubscriptions = await stripe.subscriptions.list({
+      customer: customerId,
+      status: "canceled",
+      limit: 1,
+    });
+
+    const hasActiveSub = activeSubscriptions.data.length > 0;
+    const hasCanceledSub = canceledSubscriptions.data.length > 0 && 
+      canceledSubscriptions.data[0].current_period_end * 1000 > Date.now();
+
     let productId: string | null = null;
     let plan = "free";
     let subscriptionEnd: string | null = null;
     let stripeSubscriptionId: string | null = null;
+    let status: "active" | "canceled" | "expired" = "active";
+    let canceledAt: string | null = null;
 
     if (hasActiveSub) {
-      const subscription = subscriptions.data[0];
+      const subscription = activeSubscriptions.data[0];
       subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
       stripeSubscriptionId = subscription.id;
       productId = subscription.items.data[0].price.product as string;
       plan = PRODUCT_TO_PLAN[productId] || "pro";
+      status = "active";
       logStep("Active subscription found", { subscriptionId: subscription.id, plan, endDate: subscriptionEnd });
 
       // Update subscription in database
@@ -103,8 +117,43 @@ serve(async (req) => {
       } else {
         logStep("Subscription updated in DB");
       }
+    } else if (hasCanceledSub) {
+      // User has canceled but still has access until period end
+      const subscription = canceledSubscriptions.data[0];
+      subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+      stripeSubscriptionId = subscription.id;
+      productId = subscription.items.data[0].price.product as string;
+      plan = PRODUCT_TO_PLAN[productId] || "pro";
+      status = "canceled";
+      canceledAt = subscription.canceled_at 
+        ? new Date(subscription.canceled_at * 1000).toISOString() 
+        : null;
+      logStep("Canceled subscription found (still active)", { 
+        subscriptionId: subscription.id, 
+        plan, 
+        endDate: subscriptionEnd,
+        canceledAt 
+      });
+
+      // Update subscription in database with canceled status
+      const { error: updateError } = await supabaseClient
+        .from("subscriptions")
+        .update({
+          plan: plan,
+          status: "canceled",
+          stripe_customer_id: customerId,
+          stripe_subscription_id: stripeSubscriptionId,
+          current_period_end: subscriptionEnd,
+        })
+        .eq("user_id", user.id);
+
+      if (updateError) {
+        logStep("Error updating canceled subscription in DB", { error: updateError.message });
+      } else {
+        logStep("Canceled subscription updated in DB");
+      }
     } else {
-      logStep("No active subscription found");
+      logStep("No active or valid canceled subscription found");
       
       // Update to free plan in database
       await supabaseClient
@@ -120,11 +169,13 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({
-      subscribed: hasActiveSub,
+      subscribed: hasActiveSub || hasCanceledSub,
       plan,
+      status,
       product_id: productId,
       subscription_end: subscriptionEnd,
       stripe_customer_id: customerId,
+      canceled_at: canceledAt,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
