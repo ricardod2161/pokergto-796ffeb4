@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.hand-analysis]
 verify_jwt = false
+
+[functions.generate-mockup-image]
+verify_jwt = false
