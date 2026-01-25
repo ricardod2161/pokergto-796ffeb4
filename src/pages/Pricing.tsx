@@ -183,7 +183,28 @@ export default function Pricing() {
     try {
       const { data, error } = await supabase.functions.invoke("customer-portal");
 
-      if (error) throw error;
+      if (error) {
+        const errorMessage = error.message || "";
+        if (errorMessage.includes("No Stripe customer")) {
+          toast.error("Você ainda não tem uma assinatura ativa no Stripe", {
+            description: "Complete um checkout primeiro para gerenciar sua assinatura.",
+          });
+          setIsLoading(null);
+          return;
+        }
+        throw error;
+      }
+
+      if (data?.error) {
+        if (data.error.includes("No Stripe customer")) {
+          toast.error("Você ainda não tem uma assinatura ativa no Stripe", {
+            description: "Complete um checkout primeiro para gerenciar sua assinatura.",
+          });
+          setIsLoading(null);
+          return;
+        }
+        throw new Error(data.error);
+      }
 
       if (data?.url) {
         window.open(data.url, "_blank");
