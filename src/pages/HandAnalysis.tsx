@@ -955,9 +955,9 @@ Dealt to Hero [Ah Kd]
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
           {/* Main Replayer */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="md:col-span-2 space-y-4">
             {/* Table View */}
             <div className="rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)] overflow-hidden">
               <div className={cn(
@@ -1186,9 +1186,9 @@ Dealt to Hero [Ah Kd]
             )}
           </div>
 
-          {/* Analysis Sidebar - Desktop (1024px+) */}
+          {/* Analysis Sidebar - Desktop (768px+) */}
           {!isMobile && (
-            <div className="hidden lg:block">
+            <div className="hidden md:block">
               <AnalysisSidebar />
             </div>
           )}
