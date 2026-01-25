@@ -15,7 +15,9 @@ import {
   CreditCard,
   Crown,
   FileText,
-  Settings
+  Settings,
+  AlertTriangle,
+  Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -134,7 +136,7 @@ export function Sidebar() {
                 <div className="flex items-center gap-1.5 mt-0.5">
                   {getPlanBadge()}
                   {subscription?.status === "canceled" && (
-                    <Badge variant="outline" className="text-[9px] px-1 text-warning border-warning/30">
+                    <Badge variant="outline" className="text-[9px] px-1 text-amber-500 border-amber-500/30">
                       Cancelado
                     </Badge>
                   )}
@@ -142,15 +144,47 @@ export function Sidebar() {
               </div>
             </div>
             
+            {/* Billing Info */}
+            {subscription && subscription.plan !== "free" && subscription.current_period_end && (
+              <div className="mt-2 px-2">
+                {subscription.status === "canceled" ? (
+                  <div className="flex items-center gap-1.5 text-[10px] text-amber-500">
+                    <AlertTriangle className="h-3 w-3" />
+                    <span>
+                      Expira em {Math.ceil((new Date(subscription.current_period_end).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} dias
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground">
+                    Próx. cobrança: {new Date(subscription.current_period_end).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                  </p>
+                )}
+              </div>
+            )}
+            
             {/* Manage Subscription Button */}
             {subscription && subscription.plan !== "free" && (
               <button
                 onClick={handleManageSubscription}
                 disabled={isManageLoading}
-                className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-sidebar-accent transition-colors"
+                className={cn(
+                  "w-full mt-2 flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors",
+                  subscription.status === "canceled" 
+                    ? "bg-green-500/10 text-green-500 hover:bg-green-500/20"
+                    : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+                )}
               >
-                <Settings className="h-3 w-3" />
-                {subscription.status === "canceled" ? "Reativar Plano" : "Gerenciar Plano"}
+                {subscription.status === "canceled" ? (
+                  <>
+                    <Zap className="h-3 w-3" />
+                    Reativar Plano
+                  </>
+                ) : (
+                  <>
+                    <Settings className="h-3 w-3" />
+                    Gerenciar Plano
+                  </>
+                )}
               </button>
             )}
           </div>
