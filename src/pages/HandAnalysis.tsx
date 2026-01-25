@@ -763,13 +763,7 @@ Dealt to Hero [Ah Kd]
           </div>
           
           <div className="flex gap-2 flex-wrap items-center">
-            <UsageBadge
-              currentCount={usage.currentCount}
-              dailyLimit={usage.dailyLimit}
-              remaining={usage.remaining}
-              isUnlimited={usage.isUnlimited}
-              planName={planName}
-            />
+            <UsageBadge />
             {/* Hero cards selector */}
             <Popover open={isCardPickerOpen} onOpenChange={setIsCardPickerOpen}>
               <PopoverTrigger asChild>
