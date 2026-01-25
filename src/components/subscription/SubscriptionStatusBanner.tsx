@@ -37,7 +37,23 @@ export function SubscriptionStatusBanner() {
     try {
       const { data, error } = await supabase.functions.invoke("customer-portal");
       
-      if (error) throw error;
+      if (error) {
+        const errorMessage = error.message || "";
+        if (errorMessage.includes("No Stripe customer")) {
+          toast.error("Erro: registro Stripe não encontrado");
+          navigate("/pricing");
+          return;
+        }
+        throw error;
+      }
+      if (data?.error) {
+        if (data.error.includes("No Stripe customer")) {
+          toast.error("Erro: registro Stripe não encontrado");
+          navigate("/pricing");
+          return;
+        }
+        throw new Error(data.error);
+      }
       if (data?.url) {
         window.open(data.url, "_blank");
       }

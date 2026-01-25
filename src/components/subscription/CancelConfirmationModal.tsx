@@ -62,7 +62,24 @@ export function CancelConfirmationModal({
     try {
       const { data, error } = await supabase.functions.invoke("customer-portal");
       
-      if (error) throw error;
+      if (error) {
+        // Check if error is because no Stripe customer exists
+        const errorMessage = error.message || "";
+        if (errorMessage.includes("No Stripe customer")) {
+          toast.error("Você precisa ter uma assinatura ativa para gerenciar");
+          onOpenChange(false);
+          return;
+        }
+        throw error;
+      }
+      if (data?.error) {
+        if (data.error.includes("No Stripe customer")) {
+          toast.error("Você precisa ter uma assinatura ativa para gerenciar");
+          onOpenChange(false);
+          return;
+        }
+        throw new Error(data.error);
+      }
       if (data?.url) {
         window.open(data.url, "_blank");
         onOpenChange(false);
