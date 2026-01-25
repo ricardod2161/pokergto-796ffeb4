@@ -444,15 +444,16 @@ export default function Landing() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <div className="relative rounded-3xl overflow-hidden border border-border shadow-2xl shadow-primary/10">
+            <div className="relative rounded-3xl overflow-hidden border border-border shadow-2xl shadow-primary/10 bg-card">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent pointer-events-none z-10" />
               <video 
-                className="w-full aspect-video object-cover"
+                className="w-full aspect-video object-cover bg-muted"
                 autoPlay 
                 loop 
                 muted 
                 playsInline
-                poster="/placeholder.svg"
+                controls
+                preload="auto"
               >
                 <source src="/videos/tutorial-pokergto.mp4" type="video/mp4" />
                 Seu navegador não suporta vídeo HTML5.
