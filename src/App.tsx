@@ -16,6 +16,7 @@ import HandAnalysis from "./pages/HandAnalysis";
 import BettingAssistant from "./pages/BettingAssistant";
 import Training from "./pages/Training";
 import Admin from "./pages/Admin";
+import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="/hand-analysis/import" element={<HandAnalysis />} />
               <Route path="/betting-assistant" element={<BettingAssistant />} />
               <Route path="/training" element={<Training />} />
+              <Route path="/pricing" element={<Pricing />} />
             </Route>
             <Route path="/admin" element={
               <ProtectedRoute requireAdmin>
