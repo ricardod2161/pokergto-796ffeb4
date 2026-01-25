@@ -12,6 +12,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { parseHandHistory, generateSampleHand, type ParsedHand, type Street, type Action } from "@/lib/handHistoryParser";
 import { useHandAnalysisAI } from "@/hooks/useHandAnalysisAI";
 import { HandAnalysisAIPanel } from "@/components/hand-analysis/HandAnalysisAIPanel";
+import { UsageBadge } from "@/components/usage/UsageBadge";
 import { toast } from "sonner";
 import {
   Tooltip,
@@ -133,7 +134,7 @@ export default function HandAnalysis() {
   const isMobile = useIsMobile();
   
   // AI Analysis hook
-  const { analysis, isLoading: isAnalyzing, error: analysisError, analyzeHand, clearAnalysis } = useHandAnalysisAI();
+  const { analysis, isLoading: isAnalyzing, error: analysisError, analyzeHand, clearAnalysis, usage, planName, canUseAnalysis } = useHandAnalysisAI();
 
   // Available positions for the current table size
   const availablePositions = useMemo(() => getPositionsForTableSize(tableSize), [tableSize]);
@@ -762,6 +763,13 @@ Dealt to Hero [Ah Kd]
           </div>
           
           <div className="flex gap-2 flex-wrap items-center">
+            <UsageBadge
+              currentCount={usage.currentCount}
+              dailyLimit={usage.dailyLimit}
+              remaining={usage.remaining}
+              isUnlimited={usage.isUnlimited}
+              planName={planName}
+            />
             {/* Hero cards selector */}
             <Popover open={isCardPickerOpen} onOpenChange={setIsCardPickerOpen}>
               <PopoverTrigger asChild>

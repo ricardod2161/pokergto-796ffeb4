@@ -41,6 +41,33 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_usage: {
+        Row: {
+          analysis_count: number
+          created_at: string
+          id: string
+          updated_at: string
+          usage_date: string
+          user_id: string
+        }
+        Insert: {
+          analysis_count?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          usage_date?: string
+          user_id: string
+        }
+        Update: {
+          analysis_count?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          usage_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -217,6 +244,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_daily_usage: {
+        Args: { p_user_id: string }
+        Returns: {
+          current_count: number
+          daily_limit: number
+          remaining: number
+        }[]
+      }
       get_user_plan: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["subscription_plan"]
@@ -227,6 +262,14 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_daily_usage: {
+        Args: { p_user_id: string }
+        Returns: {
+          can_use: boolean
+          current_count: number
+          daily_limit: number
+        }[]
       }
     }
     Enums: {

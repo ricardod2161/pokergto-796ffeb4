@@ -4,6 +4,7 @@ import { RangeAIPanel } from "@/components/ranges/RangeAIPanel";
 import { QuickHelp, EducationalTooltip, educationalContent } from "@/components/ranges/EducationalTooltips";
 import { ControlsContent, CollapsedControls } from "@/components/ranges/RangeControls";
 import { useRangeAnalysis } from "@/hooks/useRangeAnalysis";
+import { UsageBadge } from "@/components/usage/UsageBadge";
 import { 
   openRanges, 
   threeBetRanges, 
@@ -91,7 +92,7 @@ export default function Ranges() {
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
   const isMobile = useIsMobile();
 
-  const { analysis, isLoading, error, analyzeHand, clearAnalysis } = useRangeAnalysis();
+  const { analysis, isLoading, error, analyzeHand, clearAnalysis, usage, planName, canUseAnalysis } = useRangeAnalysis();
 
   const handleHandClick = (hand: string, data: HandData) => {
     setSelectedHand(hand);
@@ -201,6 +202,13 @@ export default function Ranges() {
               <span className="text-xs text-[hsl(220,15%,50%)]">8-Max Cash Game • Estratégia de Equilíbrio</span>
             </div>
             <div className="flex items-center gap-3">
+              <UsageBadge
+                currentCount={usage.currentCount}
+                dailyLimit={usage.dailyLimit}
+                remaining={usage.remaining}
+                isUnlimited={usage.isUnlimited}
+                planName={planName}
+              />
               <Button
                 variant="ghost"
                 size="sm"

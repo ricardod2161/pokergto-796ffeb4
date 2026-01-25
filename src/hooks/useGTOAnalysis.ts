@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
+import { useUsageLimits } from "./useUsageLimits";
 
 interface Card {
   rank: string;
@@ -35,8 +36,17 @@ export function useGTOAnalysis() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const { usage, checkAndIncrementUsage, canUseAnalysis, planName } = useUsageLimits();
+  const usageRef = useRef({ usage, checkAndIncrementUsage, canUseAnalysis, planName });
+  usageRef.current = { usage, checkAndIncrementUsage, canUseAnalysis, planName };
 
   const analyzeWithAI = useCallback(async (context: AnalysisContext) => {
+    // Check usage limits before making the API call
+    const canProceed = await usageRef.current.checkAndIncrementUsage();
+    if (!canProceed) {
+      return;
+    }
+
     setIsAnalyzing(true);
     setAiAnalysis("");
     setError(null);
@@ -148,5 +158,8 @@ export function useGTOAnalysis() {
     error,
     analyzeWithAI,
     clearAnalysis,
+    usage: usageRef.current.usage,
+    planName: usageRef.current.planName,
+    canUseAnalysis: usageRef.current.canUseAnalysis,
   };
 }

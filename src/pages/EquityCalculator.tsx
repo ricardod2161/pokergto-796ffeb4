@@ -10,6 +10,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useEquityAnalysis } from "@/hooks/useEquityAnalysis";
+import { UsageBadge } from "@/components/usage/UsageBadge";
 
 type Suit = "hearts" | "diamonds" | "clubs" | "spades";
 type Rank = "A" | "K" | "Q" | "J" | "T" | "9" | "8" | "7" | "6" | "5" | "4" | "3" | "2";
@@ -71,7 +72,7 @@ export default function EquityCalculator() {
   const [history, setHistory] = useState<CalculationHistory[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
-  const { analysis, isLoading: isAnalyzing, error: analysisError, analyzeEquity, clearAnalysis } = useEquityAnalysis();
+  const { analysis, isLoading: isAnalyzing, error: analysisError, analyzeEquity, clearAnalysis, usage, planName, canUseAnalysis } = useEquityAnalysis();
 
   const handleCardSelect = (rank: Rank, suit: Suit) => {
     const card: Card = { rank, suit };
@@ -208,15 +209,24 @@ export default function EquityCalculator() {
               <p className="text-xs md:text-sm text-muted-foreground">Calcule equity mão vs range com precisão</p>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleReset}
-            className="border-border/50 hover:bg-muted/50"
-          >
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Reiniciar
-          </Button>
+          <div className="flex items-center gap-2">
+            <UsageBadge
+              currentCount={usage.currentCount}
+              dailyLimit={usage.dailyLimit}
+              remaining={usage.remaining}
+              isUnlimited={usage.isUnlimited}
+              planName={planName}
+            />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleReset}
+              className="border-border/50 hover:bg-muted/50"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Reiniciar
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">

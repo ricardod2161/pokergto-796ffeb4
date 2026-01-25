@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
+import { useUsageLimits } from './useUsageLimits';
 
 interface RangeAnalysisParams {
   hand: string;
@@ -14,8 +15,17 @@ export function useRangeAnalysis() {
   const [analysis, setAnalysis] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { usage, checkAndIncrementUsage, canUseAnalysis, planName } = useUsageLimits();
+  const usageRef = useRef({ usage, checkAndIncrementUsage, canUseAnalysis, planName });
+  usageRef.current = { usage, checkAndIncrementUsage, canUseAnalysis, planName };
 
   const analyzeHand = useCallback(async (params: RangeAnalysisParams) => {
+    // Check usage limits before making the API call
+    const canProceed = await usageRef.current.checkAndIncrementUsage();
+    if (!canProceed) {
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setAnalysis('');
@@ -123,5 +133,8 @@ export function useRangeAnalysis() {
     error,
     analyzeHand,
     clearAnalysis,
+    usage: usageRef.current.usage,
+    planName: usageRef.current.planName,
+    canUseAnalysis: usageRef.current.canUseAnalysis,
   };
 }

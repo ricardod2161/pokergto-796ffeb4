@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
+import { useUsageLimits } from "./useUsageLimits";
 
 interface Card {
   rank: string;
@@ -18,8 +19,17 @@ export function useEquityAnalysis() {
   const [analysis, setAnalysis] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { usage, checkAndIncrementUsage, canUseAnalysis, planName } = useUsageLimits();
+  const usageRef = useRef({ usage, checkAndIncrementUsage, canUseAnalysis, planName });
+  usageRef.current = { usage, checkAndIncrementUsage, canUseAnalysis, planName };
 
   const analyzeEquity = useCallback(async (params: EquityAnalysisParams) => {
+    // Check usage limits before making the API call
+    const canProceed = await usageRef.current.checkAndIncrementUsage();
+    if (!canProceed) {
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setAnalysis("");
@@ -100,5 +110,8 @@ export function useEquityAnalysis() {
     error,
     analyzeEquity,
     clearAnalysis,
+    usage: usageRef.current.usage,
+    planName: usageRef.current.planName,
+    canUseAnalysis: usageRef.current.canUseAnalysis,
   };
 }
