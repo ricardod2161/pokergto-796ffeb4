@@ -18,6 +18,7 @@ import {
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { SubscriptionStatusBanner } from "@/components/subscription/SubscriptionStatusBanner";
 
 const stats = [
   { label: "VPIP", value: "24.5%", icon: Percent, color: "text-primary" },
@@ -82,6 +83,9 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-[hsl(220,20%,6%)]">
       <div className="p-6 lg:p-8 space-y-6">
+        {/* Subscription Status Banner */}
+        <SubscriptionStatusBanner />
+
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-foreground">Painel Principal</h1>
