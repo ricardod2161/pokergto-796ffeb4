@@ -202,13 +202,7 @@ export default function Ranges() {
               <span className="text-xs text-[hsl(220,15%,50%)]">8-Max Cash Game • Estratégia de Equilíbrio</span>
             </div>
             <div className="flex items-center gap-3">
-              <UsageBadge
-                currentCount={usage.currentCount}
-                dailyLimit={usage.dailyLimit}
-                remaining={usage.remaining}
-                isUnlimited={usage.isUnlimited}
-                planName={planName}
-              />
+              <UsageBadge />
               <Button
                 variant="ghost"
                 size="sm"

@@ -203,13 +203,7 @@ export default function BettingAssistant() {
             <p className="text-xs text-muted-foreground">Análise GTO com recomendações de sizing ótimo</p>
           </div>
           <div className="flex items-center gap-2">
-            <UsageBadge
-              currentCount={usage.currentCount}
-              dailyLimit={usage.dailyLimit}
-              remaining={usage.remaining}
-              isUnlimited={usage.isUnlimited}
-              planName={planName}
-            />
+            <UsageBadge />
             <Button 
               variant="outline" 
               size="sm" 

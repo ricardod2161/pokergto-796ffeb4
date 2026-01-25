@@ -11,7 +11,7 @@ interface UsageInfo {
 }
 
 export function useUsageLimits() {
-  const { user, subscription } = useAuth();
+  const { user, subscription, isAdmin } = useAuth();
   const [usage, setUsage] = useState<UsageInfo>({
     currentCount: 0,
     dailyLimit: 5,
@@ -23,6 +23,12 @@ export function useUsageLimits() {
   const fetchUsage = useCallback(async () => {
     if (!user) {
       setUsage({ currentCount: 0, dailyLimit: 5, remaining: 5, isUnlimited: false });
+      return;
+    }
+
+    // Admins are always unlimited
+    if (isAdmin) {
+      setUsage({ currentCount: 0, dailyLimit: -1, remaining: -1, isUnlimited: true });
       return;
     }
 
@@ -45,12 +51,17 @@ export function useUsageLimits() {
     } catch (error) {
       console.error("Error fetching usage:", error);
     }
-  }, [user]);
+  }, [user, isAdmin]);
 
   const checkAndIncrementUsage = useCallback(async (): Promise<boolean> => {
     if (!user) {
       toast.error("Faça login para usar análises de IA");
       return false;
+    }
+
+    // Admins are always unlimited - no need to increment
+    if (isAdmin) {
+      return true;
     }
 
     setIsLoading(true);
@@ -98,24 +109,27 @@ export function useUsageLimits() {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, isAdmin]);
 
   const canUseAnalysis = useCallback((): boolean => {
     if (!user) return false;
+    if (isAdmin) return true; // Admins always can use
     if (usage.isUnlimited) return true;
     return usage.remaining > 0;
-  }, [user, usage]);
+  }, [user, usage, isAdmin]);
 
-  // Fetch usage on mount and when user/subscription changes
+  // Fetch usage on mount and when user/subscription/admin status changes
   useEffect(() => {
     fetchUsage();
-  }, [fetchUsage, subscription]);
+  }, [fetchUsage, subscription, isAdmin]);
 
-  const planName = subscription?.plan === "premium" 
-    ? "Premium" 
-    : subscription?.plan === "pro" 
-      ? "Pro" 
-      : "Free";
+  const planName = isAdmin 
+    ? "Admin" 
+    : subscription?.plan === "premium" 
+      ? "Premium" 
+      : subscription?.plan === "pro" 
+        ? "Pro" 
+        : "Free";
 
   return {
     usage,

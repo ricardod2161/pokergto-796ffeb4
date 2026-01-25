@@ -169,13 +169,7 @@ export default function EVCalculator() {
                   </p>
                 </div>
               </div>
-              <UsageBadge
-                currentCount={usage.currentCount}
-                dailyLimit={usage.dailyLimit}
-                remaining={usage.remaining}
-                isUnlimited={usage.isUnlimited}
-                planName={planName}
-              />
+              <UsageBadge />
             </div>
           </div>
 

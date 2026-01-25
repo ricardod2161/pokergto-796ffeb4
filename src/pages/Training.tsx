@@ -481,14 +481,7 @@ export default function Training() {
               </div>
             </div>
 
-            <UsageBadge
-              currentCount={usage.currentCount}
-              dailyLimit={usage.dailyLimit}
-              remaining={usage.remaining}
-              isUnlimited={usage.isUnlimited}
-              planName={planName}
-              className="hidden sm:flex"
-            />
+            <UsageBadge className="hidden sm:flex" />
 
             {/* Mobile Config Sheet */}
             {isMobile ? (
