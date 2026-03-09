@@ -1,6 +1,6 @@
 import { StreetPlan } from "@/lib/pokerAnalysis";
 import { cn } from "@/lib/utils";
-import { Map, ChevronRight } from "lucide-react";
+import { Map, ChevronRight, AlertTriangle } from "lucide-react";
 
 interface MultiStreetPlanProps {
   plans: StreetPlan[];
@@ -14,11 +14,11 @@ const streetLabels = {
 };
 
 const actionColors: Record<string, string> = {
-  bet: "bg-success/20 text-success border-success/40",
+  bet:   "bg-success/20 text-success border-success/40",
   raise: "bg-success/20 text-success border-success/40",
-  call: "bg-primary/20 text-primary border-primary/40",
+  call:  "bg-primary/20 text-primary border-primary/40",
   check: "bg-warning/20 text-warning border-warning/40",
-  fold: "bg-destructive/20 text-destructive border-destructive/40"
+  fold:  "bg-destructive/20 text-destructive border-destructive/40"
 };
 
 export function MultiStreetPlan({ plans, currentStreet }: MultiStreetPlanProps) {
@@ -28,20 +28,20 @@ export function MultiStreetPlan({ plans, currentStreet }: MultiStreetPlanProps) 
         <Map className="w-4 h-4 text-primary" />
         <h3 className="font-semibold text-foreground text-sm">Plano Multi-Street</h3>
       </div>
-      
+
       <div className="space-y-2">
         {plans.map((plan, index) => {
           const isCurrent = plan.street === currentStreet;
-          const isPast = ["flop", "turn", "river"].indexOf(plan.street) < 
-                        ["flop", "turn", "river"].indexOf(currentStreet);
-          
+          const isPast = ["flop", "turn", "river"].indexOf(plan.street) <
+                         ["flop", "turn", "river"].indexOf(currentStreet);
+
           return (
-            <div 
+            <div
               key={plan.street}
               className={cn(
                 "relative p-3 rounded-lg border transition-all",
-                isCurrent 
-                  ? "bg-primary/10 border-primary/30" 
+                isCurrent
+                  ? "bg-primary/10 border-primary/30"
                   : isPast
                     ? "bg-[hsl(220,15%,8%)] border-[hsl(220,15%,12%)] opacity-50"
                     : "bg-[hsl(220,15%,10%)] border-[hsl(220,15%,15%)]"
@@ -64,9 +64,9 @@ export function MultiStreetPlan({ plans, currentStreet }: MultiStreetPlanProps) 
                   SPR: {plan.spr.toFixed(1)}
                 </span>
               </div>
-              
+
               {/* Action */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mb-2">
                 <div className={cn(
                   "inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border",
                   actionColors[plan.action]
@@ -75,12 +75,22 @@ export function MultiStreetPlan({ plans, currentStreet }: MultiStreetPlanProps) 
                   {plan.sizing && <span>{plan.sizing}</span>}
                 </div>
               </div>
-              
+
               {/* Reasoning */}
-              <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 {plan.reasoning}
               </p>
-              
+
+              {/* Miss scenario */}
+              {plan.missScenario && (
+                <div className="flex items-start gap-1.5 mt-2 pt-2 border-t border-[hsl(220,15%,15%)]">
+                  <AlertTriangle className="w-3 h-3 text-warning shrink-0 mt-0.5" />
+                  <p className="text-xs text-warning/80 leading-relaxed">
+                    {plan.missScenario}
+                  </p>
+                </div>
+              )}
+
               {/* Connector arrow */}
               {index < plans.length - 1 && (
                 <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-10">
