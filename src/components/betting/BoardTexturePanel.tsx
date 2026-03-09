@@ -33,29 +33,23 @@ export function BoardTexturePanel({ texture, isOESD }: BoardTexturePanelProps) {
   const getStraightDrawLabel = () => {
     if (texture.straightDraw === "none") return "Nenhum";
     if (texture.straightDraw === "completed") return "Completado";
-    if (texture.straightDraw === "backdoor") return "Backdoor";
-
-    // If we have hero-card context (isOESD prop passed)
+    // "oesd" | "gutshot" at this point
     if (isOESD !== undefined) {
       return isOESD ? "OESD (8 outs)" : "Gutshot (4 outs)";
     }
-
-    // Board-only fallback
     return texture.straightDraw === "oesd" ? "OESD (8 outs)" : "Gutshot (4 outs)";
   };
 
   const getStraightDrawBadgeColor = () => {
     if (texture.straightDraw === "none") return "";
     if (texture.straightDraw === "completed") return "text-foreground";
-    if (texture.straightDraw === "backdoor") return "text-muted-foreground";
-
+    // "oesd" | "gutshot" at this point
     const effectiveIsOESD = isOESD !== undefined
       ? isOESD
       : texture.straightDraw === "oesd";
-
     return effectiveIsOESD
-      ? "text-success font-semibold"   // OESD — green
-      : "text-warning font-semibold";  // Gutshot — yellow
+      ? "text-success font-semibold"
+      : "text-warning font-semibold";
   };
 
   return (
