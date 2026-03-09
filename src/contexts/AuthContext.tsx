@@ -129,11 +129,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
     });
     
-    // Reset daily usage on successful login to give user fresh credits
+    // Reset daily usage on successful login — wrapped so failures never block login
     if (!error && data.user) {
-      await supabase.rpc("reset_user_daily_usage", {
-        p_user_id: data.user.id,
-      });
+      try {
+        await supabase.rpc("reset_user_daily_usage", { p_user_id: data.user.id });
+      } catch (rpcErr) {
+        console.warn("reset_user_daily_usage failed (non-critical):", rpcErr);
+      }
     }
     
     return { error };
