@@ -23,7 +23,9 @@ import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 import Install from "./pages/Install";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1 } },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
