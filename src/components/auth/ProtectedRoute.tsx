@@ -35,10 +35,10 @@ export function ProtectedRoute({
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (requirePlan && subscription) {
-    const userPlan = subscription.plan;
-    if (!requirePlan.includes(userPlan)) {
-      return <Navigate to="/upgrade" replace />;
+  if (requirePlan) {
+    const userPlan = subscription?.plan;
+    if (!userPlan || !requirePlan.includes(userPlan)) {
+      return <Navigate to="/pricing" replace />;
     }
   }
 

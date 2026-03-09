@@ -60,39 +60,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserData = async (userId: string) => {
     try {
-      // Fetch profile
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
-      
-      if (profileData) {
-        setProfile(profileData as Profile);
-      }
+      // Fetch profile, subscription, and roles in parallel
+      const [profileRes, subRes, rolesRes] = await Promise.all([
+        supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
+        supabase.from("subscriptions").select("*").eq("user_id", userId).maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", userId),
+      ]);
 
-      // Fetch subscription
-      const { data: subData } = await supabase
-        .from("subscriptions")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
-      
-      if (subData) {
-        setSubscription(subData as Subscription);
-      }
-
-      // Fetch roles
-      const { data: rolesData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId);
-      
-      if (rolesData) {
-        setRoles(rolesData.map(r => r.role as AppRole));
-      }
+      // Always set state — even null — to avoid stale state on user switch
+      setProfile((profileRes.data as Profile) ?? null);
+      setSubscription((subRes.data as Subscription) ?? null);
+      setRoles(rolesRes.data ? rolesRes.data.map(r => r.role as AppRole) : []);
     } catch (error) {
       console.error("Error fetching user data:", error);
+      // Clear stale state on error
+      setProfile(null);
+      setSubscription(null);
+      setRoles([]);
     }
   };
 
@@ -145,11 +129,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
     });
     
-    // Reset daily usage on successful login to give user fresh credits
+    // Reset daily usage on successful login — wrapped so failures never block login
     if (!error && data.user) {
-      await supabase.rpc("reset_user_daily_usage", {
-        p_user_id: data.user.id,
-      });
+      try {
+        await supabase.rpc("reset_user_daily_usage", { p_user_id: data.user.id });
+      } catch (rpcErr) {
+        console.warn("reset_user_daily_usage failed (non-critical):", rpcErr);
+      }
     }
     
     return { error };
