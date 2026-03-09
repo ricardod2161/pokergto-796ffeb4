@@ -386,6 +386,54 @@ export default function EVCalculator() {
                       💡 Ganhos extras esperados se você completar sua mão
                     </p>
                   </div>
+
+                  {/* Outs-based equity helper */}
+                  <div className="space-y-2 pt-1 border-t border-border/50">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm text-foreground flex items-center gap-2">
+                        <Target className="w-3.5 h-3.5 text-muted-foreground" />
+                        Calculadora pela Regra 2&4
+                        <span className="text-xs text-muted-foreground/50">(Opcional)</span>
+                      </Label>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Outs"
+                        value={outs}
+                        onChange={(e) => setOuts(e.target.value)}
+                        className="h-9 bg-muted/50 border-border font-mono focus:border-primary flex-1"
+                        min={0}
+                        max={21}
+                      />
+                      <select
+                        value={outsStreet}
+                        onChange={(e) => setOutsStreet(e.target.value as "flop" | "turn" | "river")}
+                        className="h-9 px-2 rounded-md bg-muted/50 border border-border text-sm text-foreground focus:border-primary focus:outline-none"
+                      >
+                        <option value="flop">Flop</option>
+                        <option value="turn">Turn</option>
+                        <option value="river">River</option>
+                      </select>
+                    </div>
+                    {outsEquityEstimate !== null && (
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-primary/10 border border-primary/20">
+                        <span className="text-xs text-muted-foreground">Estimativa Regra 2&4:</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-mono font-bold text-primary">{outsEquityEstimate}%</span>
+                          <button
+                            onClick={() => setEquity(outsEquityEstimate.toString())}
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary hover:bg-primary/30 transition-colors"
+                          >
+                            Usar
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      💡 Flop: outs×4%, Turn/River: outs÷46×100%
+                    </p>
+                  </div>
                 </div>
 
                 {/* Live Stats Preview */}
