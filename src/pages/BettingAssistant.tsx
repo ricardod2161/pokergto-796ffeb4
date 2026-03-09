@@ -310,7 +310,10 @@ export default function BettingAssistant() {
           <div className="xl:col-span-3 space-y-4">
             {/* Board Texture */}
             {boardCards.length >= 3 && (
-              <BoardTexturePanel texture={boardTexture} />
+              <BoardTexturePanel
+                texture={boardTexture}
+                isOESD={heroCards.length >= 2 ? handAnalysis.isOESD : undefined}
+              />
             )}
 
             {/* Hand History */}
