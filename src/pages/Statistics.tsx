@@ -5,7 +5,9 @@ import {
   DollarSign,
   Eye,
   Crosshair,
-  Layers
+  Layers,
+  BarChart2,
+  Import,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { 
@@ -15,60 +17,191 @@ import {
   YAxis, 
   Tooltip, 
   ResponsiveContainer,
-  Legend
 } from "recharts";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
-const trendData = [
-  { date: "Semana 1", vpip: 26, pfr: 20, threeBet: 7 },
-  { date: "Semana 2", vpip: 25, pfr: 19, threeBet: 8 },
-  { date: "Semana 3", vpip: 24, pfr: 19, threeBet: 8 },
-  { date: "Semana 4", vpip: 24.5, pfr: 19.2, threeBet: 8.7 },
-];
+interface HandSession {
+  id: string;
+  position: string;
+  result_bb: number;
+  vpip: boolean;
+  pfr: boolean;
+  three_bet: boolean;
+  session_date: string;
+}
 
-const positionData = [
-  { position: "UTG", winRate: 2.1, hands: 1240, profit: 260 },
-  { position: "UTG+1", winRate: 1.8, hands: 1180, profit: 212 },
-  { position: "MP", winRate: 3.2, hands: 1320, profit: 422 },
-  { position: "HJ", winRate: 4.5, hands: 1450, profit: 653 },
-  { position: "CO", winRate: 6.8, hands: 1580, profit: 1074 },
-  { position: "BTN", winRate: 12.4, hands: 1620, profit: 2009 },
-  { position: "SB", winRate: -8.2, hands: 890, profit: -730 },
-  { position: "BB", winRate: -4.1, hands: 920, profit: -377 },
-];
+interface PositionStat {
+  position: string;
+  winRate: number;
+  hands: number;
+  profit: number;
+}
 
-const benchmarks = [
-  { stat: "VPIP", current: 24.5, optimal: 22, unit: "%" },
-  { stat: "PFR", current: 19.2, optimal: 18, unit: "%" },
-  { stat: "3-Bet", current: 8.7, optimal: 8, unit: "%" },
-  { stat: "WTSD", current: 28, optimal: 26, unit: "%" },
-  { stat: "W$SD", current: 52, optimal: 54, unit: "%" },
-  { stat: "Agg%", current: 42, optimal: 45, unit: "%" },
-];
+interface TrendPoint {
+  date: string;
+  vpip: number;
+  pfr: number;
+  threeBet: number;
+}
 
-const stats = [
-  { label: "VPIP", value: "24.5%", icon: Percent, color: "text-primary" },
-  { label: "PFR", value: "19.2%", icon: TrendingUp, color: "text-gold" },
-  { label: "3-Bet", value: "8.7%", icon: Target, color: "text-call" },
-  { label: "AF", value: "3.2", icon: Crosshair, color: "text-muted-foreground" },
-  { label: "WTSD", value: "28%", icon: Eye, color: "text-primary" },
-  { label: "W$SD", value: "52%", icon: DollarSign, color: "text-success" },
-  { label: "Mãos", value: "10.2k", icon: Layers, color: "text-muted-foreground" },
-  { label: "BB/100", value: "+5.2", icon: TrendingUp, color: "text-success" },
+const STAT_POSITIONS = ["UTG", "UTG+1", "MP", "HJ", "CO", "BTN", "SB", "BB"];
+
+function aggregateStats(sessions: HandSession[]) {
+  if (!sessions.length) return null;
+
+  // VPIP: voluntarily put in preflop
+  const vpipCount = sessions.filter(s => s.vpip).length;
+  const pfrCount = sessions.filter(s => s.pfr).length;
+  const threeBetCount = sessions.filter(s => s.three_bet).length;
+  const totalHands = sessions.length;
+
+  const vpip = Math.round((vpipCount / totalHands) * 1000) / 10;
+  const pfr = Math.round((pfrCount / totalHands) * 1000) / 10;
+  const threeBet = Math.round((threeBetCount / totalHands) * 1000) / 10;
+  const totalProfit = sessions.reduce((sum, s) => sum + s.result_bb, 0);
+  const bbPer100 = Math.round((totalProfit / totalHands) * 100 * 10) / 10;
+
+  // Position breakdown
+  const byPosition: Record<string, { profit: number; hands: number }> = {};
+  for (const s of sessions) {
+    if (!byPosition[s.position]) byPosition[s.position] = { profit: 0, hands: 0 };
+    byPosition[s.position].profit += s.result_bb;
+    byPosition[s.position].hands += 1;
+  }
+
+  const positionData: PositionStat[] = STAT_POSITIONS.map(pos => {
+    const data = byPosition[pos] || { profit: 0, hands: 0 };
+    return {
+      position: pos,
+      winRate: data.hands > 0 ? Math.round((data.profit / data.hands) * 100 * 10) / 10 : 0,
+      hands: data.hands,
+      profit: Math.round(data.profit * 10) / 10,
+    };
+  });
+
+  // Weekly trend (last 4 weeks)
+  const now = new Date();
+  const trendData: TrendPoint[] = Array.from({ length: 4 }, (_, week) => {
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - (3 - week) * 7 - 6);
+    const weekEnd = new Date(now);
+    weekEnd.setDate(now.getDate() - (3 - week) * 7);
+
+    const weekSessions = sessions.filter(s => {
+      const d = new Date(s.session_date);
+      return d >= weekStart && d <= weekEnd;
+    });
+
+    const wTotal = weekSessions.length || 1;
+    return {
+      date: `Semana ${week + 1}`,
+      vpip: Math.round((weekSessions.filter(s => s.vpip).length / wTotal) * 1000) / 10,
+      pfr: Math.round((weekSessions.filter(s => s.pfr).length / wTotal) * 1000) / 10,
+      threeBet: Math.round((weekSessions.filter(s => s.three_bet).length / wTotal) * 1000) / 10,
+    };
+  });
+
+  return { vpip, pfr, threeBet, bbPer100, totalHands, positionData, trendData, totalProfit };
+}
+
+const GTO_BENCHMARKS = [
+  { stat: "VPIP", optimal: 22, unit: "%" },
+  { stat: "PFR", optimal: 18, unit: "%" },
+  { stat: "3-Bet", optimal: 8, unit: "%" },
 ];
 
 export default function Statistics() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const { data: sessions, isLoading } = useQuery({
+    queryKey: ["hand_sessions", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("hand_sessions")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("session_date", { ascending: false });
+      if (error) throw error;
+      return (data || []) as HandSession[];
+    },
+    enabled: !!user,
+  });
+
+  const stats = sessions ? aggregateStats(sessions) : null;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[hsl(220,20%,6%)] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Empty state
+  if (!sessions || sessions.length === 0) {
+    return (
+      <div className="min-h-screen bg-[hsl(220,20%,6%)]">
+        <div className="p-6 lg:p-8 space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Estatísticas</h1>
+            <p className="text-sm text-muted-foreground">Análise detalhada do seu perfil de jogo</p>
+          </div>
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="w-20 h-20 rounded-2xl bg-muted/30 flex items-center justify-center mb-6">
+              <BarChart2 className="w-10 h-10 text-muted-foreground/40" />
+            </div>
+            <h2 className="text-xl font-bold text-foreground mb-2">Nenhum dado disponível</h2>
+            <p className="text-sm text-muted-foreground max-w-sm mb-6">
+              Importe mãos via Análise de Mãos para ver suas estatísticas reais de jogo aqui.
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => navigate("/hand-analysis/import")}
+              className="border-primary/30 text-primary hover:bg-primary/10"
+            >
+              <Import className="w-4 h-4 mr-2" />
+              Ir para Análise de Mãos
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Stat bar items from real data
+  const statItems = [
+    { label: "VPIP", value: `${stats!.vpip}%`, color: "text-primary" },
+    { label: "PFR", value: `${stats!.pfr}%`, color: "text-[hsl(43,96%,56%)]" },
+    { label: "3-Bet", value: `${stats!.threeBet}%`, color: "text-[hsl(210,90%,55%)]" },
+    { label: "Mãos", value: stats!.totalHands >= 1000 ? `${(stats!.totalHands / 1000).toFixed(1)}k` : String(stats!.totalHands), color: "text-muted-foreground" },
+    { label: "BB/100", value: `${stats!.bbPer100 >= 0 ? "+" : ""}${stats!.bbPer100}`, color: stats!.bbPer100 >= 0 ? "text-success" : "text-destructive" },
+    { label: "Lucro", value: `${stats!.totalProfit >= 0 ? "+" : ""}${stats!.totalProfit.toFixed(0)}`, color: stats!.totalProfit >= 0 ? "text-success" : "text-destructive" },
+  ];
+
+  const benchmarkCurrent: Record<string, number> = {
+    VPIP: stats!.vpip,
+    PFR: stats!.pfr,
+    "3-Bet": stats!.threeBet,
+  };
+
   return (
     <div className="min-h-screen bg-[hsl(220,20%,6%)]">
       <div className="p-6 lg:p-8 space-y-6">
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-foreground">Estatísticas</h1>
-          <p className="text-sm text-muted-foreground">Análise detalhada do seu perfil de jogo</p>
+          <p className="text-sm text-muted-foreground">Análise detalhada do seu perfil de jogo ({stats!.totalHands} mãos)</p>
         </div>
 
         {/* Stats Bar */}
-        <div className="grid grid-cols-4 lg:grid-cols-8 gap-1 p-1 rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)]">
-          {stats.map((stat) => (
+        <div className="grid grid-cols-3 lg:grid-cols-6 gap-1 p-1 rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)]">
+          {statItems.map((stat) => (
             <div 
               key={stat.label}
               className="flex flex-col items-center justify-center py-4 px-2 rounded-lg hover:bg-[hsl(220,15%,12%)] transition-colors"
@@ -89,7 +222,7 @@ export default function Statistics() {
             <h3 className="font-semibold text-foreground mb-4">Tendência das Estatísticas</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={trendData}>
+                <LineChart data={stats!.trendData}>
                   <XAxis 
                     dataKey="date" 
                     axisLine={false}
@@ -142,11 +275,11 @@ export default function Statistics() {
                 <span className="text-muted-foreground">VPIP</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-gold" />
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "hsl(43 96% 56%)" }} />
                 <span className="text-muted-foreground">PFR</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-call" />
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "hsl(210 90% 55%)" }} />
                 <span className="text-muted-foreground">3-Bet</span>
               </div>
             </div>
@@ -156,15 +289,16 @@ export default function Statistics() {
           <div className="rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)] p-6">
             <h3 className="font-semibold text-foreground mb-4">Comparação com GTO</h3>
             <div className="space-y-3">
-              {benchmarks.map((b) => {
-                const diff = b.current - b.optimal;
+              {GTO_BENCHMARKS.map((b) => {
+                const current = benchmarkCurrent[b.stat] ?? 0;
+                const diff = current - b.optimal;
                 const isGood = Math.abs(diff) < 2;
                 return (
                   <div key={b.stat} className="space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">{b.stat}</span>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-foreground">{b.current}{b.unit}</span>
+                        <span className="font-mono text-foreground">{current}{b.unit}</span>
                         <span className={cn(
                           "text-xs px-1.5 py-0.5 rounded font-mono",
                           isGood 
@@ -183,7 +317,7 @@ export default function Statistics() {
                           "h-full rounded-full transition-all",
                           isGood ? "bg-success" : "bg-warning"
                         )}
-                        style={{ width: `${Math.min(100, (b.current / (b.optimal * 1.5)) * 100)}%` }}
+                        style={{ width: `${Math.min(100, (current / (b.optimal * 1.5)) * 100)}%` }}
                       />
                     </div>
                     <p className="text-[10px] text-muted-foreground">
@@ -200,33 +334,41 @@ export default function Statistics() {
         <div className="rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)] p-6">
           <h3 className="font-semibold text-foreground mb-4">Desempenho por Posição</h3>
           <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
-            {positionData.map((pos) => (
+            {stats!.positionData.map((pos) => (
               <div 
                 key={pos.position}
                 className={cn(
                   "rounded-lg p-4 text-center border transition-all hover:scale-105",
-                  pos.winRate >= 0 
-                    ? "bg-success/5 border-success/20" 
-                    : "bg-destructive/5 border-destructive/20"
+                  pos.hands === 0
+                    ? "bg-muted/5 border-muted/20 opacity-40"
+                    : pos.winRate >= 0 
+                      ? "bg-success/5 border-success/20" 
+                      : "bg-destructive/5 border-destructive/20"
                 )}
               >
                 <p className="font-semibold text-foreground mb-1">{pos.position}</p>
-                <p className={cn(
-                  "text-lg font-mono font-bold",
-                  pos.winRate >= 0 ? "text-success" : "text-destructive"
-                )}>
-                  {pos.winRate >= 0 ? "+" : ""}{pos.winRate}
-                </p>
-                <p className="text-[10px] text-muted-foreground">BB/100</p>
-                <div className="mt-2 pt-2 border-t border-border/50">
-                  <p className="text-xs text-muted-foreground">{pos.hands} mãos</p>
-                  <p className={cn(
-                    "text-xs font-mono",
-                    pos.profit >= 0 ? "text-success" : "text-destructive"
-                  )}>
-                    {pos.profit >= 0 ? "+" : ""}{pos.profit} BB
-                  </p>
-                </div>
+                {pos.hands > 0 ? (
+                  <>
+                    <p className={cn(
+                      "text-lg font-mono font-bold",
+                      pos.winRate >= 0 ? "text-success" : "text-destructive"
+                    )}>
+                      {pos.winRate >= 0 ? "+" : ""}{pos.winRate}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">BB/100</p>
+                    <div className="mt-2 pt-2 border-t border-border/50">
+                      <p className="text-xs text-muted-foreground">{pos.hands} mãos</p>
+                      <p className={cn(
+                        "text-xs font-mono",
+                        pos.profit >= 0 ? "text-success" : "text-destructive"
+                      )}>
+                        {pos.profit >= 0 ? "+" : ""}{pos.profit} BB
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">—</p>
+                )}
               </div>
             ))}
           </div>

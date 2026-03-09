@@ -4,6 +4,7 @@ import { Droplets, Activity } from "lucide-react";
 
 interface BoardTexturePanelProps {
   texture: BoardTexture;
+  isOESD?: boolean; // from analyzeHand — undefined means board-only (no hero cards)
 }
 
 const wetnessColors = {
@@ -20,7 +21,7 @@ const wetnessLabels = {
   "very-wet": "Muito Molhado"
 };
 
-export function BoardTexturePanel({ texture }: BoardTexturePanelProps) {
+export function BoardTexturePanel({ texture, isOESD }: BoardTexturePanelProps) {
   const flushDrawLabels = {
     "none": "Nenhum",
     "backdoor": "Backdoor",
@@ -28,11 +29,33 @@ export function BoardTexturePanel({ texture }: BoardTexturePanelProps) {
     "completed": "Completado"
   };
 
-  const straightDrawLabels = {
-    "none": "Nenhum",
-    "gutshot": "Gutshot",
-    "oesd": "OESD",
-    "completed": "Completado"
+  // Straight draw label — use isOESD if available (hero info), else use board texture
+  const getStraightDrawLabel = () => {
+    if (texture.straightDraw === "none") return "Nenhum";
+    if (texture.straightDraw === "completed") return "Completado";
+    if (texture.straightDraw === "backdoor") return "Backdoor";
+
+    // If we have hero-card context (isOESD prop passed)
+    if (isOESD !== undefined) {
+      return isOESD ? "OESD (8 outs)" : "Gutshot (4 outs)";
+    }
+
+    // Board-only fallback
+    return texture.straightDraw === "oesd" ? "OESD (8 outs)" : "Gutshot (4 outs)";
+  };
+
+  const getStraightDrawBadgeColor = () => {
+    if (texture.straightDraw === "none") return "";
+    if (texture.straightDraw === "completed") return "text-foreground";
+    if (texture.straightDraw === "backdoor") return "text-muted-foreground";
+
+    const effectiveIsOESD = isOESD !== undefined
+      ? isOESD
+      : texture.straightDraw === "oesd";
+
+    return effectiveIsOESD
+      ? "text-success font-semibold"   // OESD — green
+      : "text-warning font-semibold";  // Gutshot — yellow
   };
 
   return (
@@ -71,25 +94,25 @@ export function BoardTexturePanel({ texture }: BoardTexturePanelProps) {
       <div className="space-y-2">
         {[
           { label: "Flush Draws", value: flushDrawLabels[texture.flushDraw], 
-            active: texture.flushDraw !== "none" },
-          { label: "Straight Draws", value: straightDrawLabels[texture.straightDraw], 
-            active: texture.straightDraw !== "none" },
+            active: texture.flushDraw !== "none", colorClass: "" },
+          { label: "Straight Draws", value: getStraightDrawLabel(),
+            active: texture.straightDraw !== "none", colorClass: getStraightDrawBadgeColor() },
           { label: "Pareado", value: texture.paired ? "Sim" : "Não", 
-            active: texture.paired },
+            active: texture.paired, colorClass: "" },
           { label: "Trips", value: texture.trips ? "Sim" : "Não", 
-            active: texture.trips },
+            active: texture.trips, colorClass: "" },
           { label: "Conectado", value: texture.connected ? "Sim" : "Não", 
-            active: texture.connected },
+            active: texture.connected, colorClass: "" },
           { label: "Rainbow", value: texture.rainbow ? "Sim" : (texture.monotone ? "Monotone" : "Não"), 
-            active: !texture.rainbow },
+            active: !texture.rainbow, colorClass: "" },
           { label: "High Card", value: texture.highCard, 
-            active: true },
+            active: true, colorClass: "" },
         ].map((item) => (
           <div key={item.label} className="flex justify-between text-xs py-1">
             <span className="text-muted-foreground">{item.label}</span>
             <span className={cn(
               "font-medium",
-              item.active ? "text-foreground" : "text-muted-foreground/50"
+              item.colorClass || (item.active ? "text-foreground" : "text-muted-foreground/50")
             )}>
               {item.value}
             </span>
