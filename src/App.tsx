@@ -22,6 +22,7 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 import Install from "./pages/Install";
+import Solver from "./pages/Solver";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1 } },
