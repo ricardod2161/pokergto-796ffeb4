@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/collapsible";
 import { useEquityAnalysis } from "@/hooks/useEquityAnalysis";
 import { UsageBadge } from "@/components/usage/UsageBadge";
-import { runMonteCarloEquity } from "@/lib/equityEngine";
+import { runEquity, toEngineCard } from "@/lib/equityEngine";
 
 type Suit = "hearts" | "diamonds" | "clubs" | "spades";
 type Rank = "A" | "K" | "Q" | "J" | "T" | "9" | "8" | "7" | "6" | "5" | "4" | "3" | "2";

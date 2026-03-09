@@ -208,8 +208,8 @@ export function calculateOuts(
   let isBackdoorStraight = false;
   let straightOuts = 0;
 
-  const heroRankSet = new Set<number>(heroRanks);
-  if (heroRanks.includes(14)) heroRankSet.add(1);
+  const heroRankSet = new Set<number>(heroRanks as number[]);
+  if ((heroRanks as number[]).includes(14)) heroRankSet.add(1);
 
   for (let lo = 1; lo <= 10; lo++) {
     const window5 = [lo, lo + 1, lo + 2, lo + 3, lo + 4];
@@ -219,9 +219,9 @@ export function calculateOuts(
     const heroIn4 = window4.some(r => heroRankSet.has(r));
 
     if (heroIn5) {
-      const haveInW5 = window5.filter(r => allRanks.includes(r)).length;
+      const haveInW5 = window5.filter(r => (allRanks as number[]).includes(r)).length;
       if (haveInW5 === 4) {
-        const gaps = window5.filter(r => !allRanks.includes(r));
+        const gaps = window5.filter(r => !(allRanks as number[]).includes(r));
         if (gaps.length === 1) {
           if (gaps[0] === lo || gaps[0] === lo + 4) {
             if (!isOESD) { isOESD = true; straightOuts = 8; }
@@ -233,7 +233,7 @@ export function calculateOuts(
     }
 
     if (!isOESD && !isGutshot && board.length === 3 && heroIn4) {
-      const haveInW4 = window4.filter(r => allRanks.includes(r)).length;
+      const haveInW4 = window4.filter(r => (allRanks as number[]).includes(r)).length;
       if (haveInW4 === 3) isBackdoorStraight = true;
     }
   }
