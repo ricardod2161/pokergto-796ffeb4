@@ -1,22 +1,31 @@
 import { BettingRecommendation, BettingAction } from "@/lib/pokerAnalysis";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, AlertCircle, Target, Zap } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertCircle, Target, Zap, Flame } from "lucide-react";
 
 interface RecommendationPanelProps {
   recommendation: BettingRecommendation | null;
   equity: number;
 }
 
-const actionConfig: Record<BettingAction, { 
-  label: string; 
-  emoji: string; 
-  colors: string 
+const actionConfig: Record<BettingAction, {
+  label: string;
+  emoji: string;
+  colors: string
 }> = {
-  bet: { label: "APOSTAR", emoji: "🎯", colors: "bg-success/20 text-success border-success/30" },
-  raise: { label: "RAISE", emoji: "⚡", colors: "bg-success/20 text-success border-success/30" },
-  call: { label: "CALL", emoji: "📞", colors: "bg-primary/20 text-primary border-primary/30" },
-  check: { label: "CHECK", emoji: "⏸", colors: "bg-warning/20 text-warning border-warning/30" },
-  fold: { label: "FOLD", emoji: "✗", colors: "bg-destructive/20 text-destructive border-destructive/30" }
+  bet:   { label: "APOSTAR", emoji: "🎯", colors: "bg-success/20 text-success border-success/30" },
+  raise: { label: "RAISE",   emoji: "⚡", colors: "bg-success/20 text-success border-success/30" },
+  call:  { label: "CALL",    emoji: "📞", colors: "bg-primary/20 text-primary border-primary/30" },
+  check: { label: "CHECK",   emoji: "⏸",  colors: "bg-warning/20 text-warning border-warning/30" },
+  fold:  { label: "FOLD",    emoji: "✗",  colors: "bg-destructive/20 text-destructive border-destructive/30" }
+};
+
+const drawTypeLabels: Record<string, string> = {
+  "flush-draw": "Flush Draw",
+  "oesd":       "OESD",
+  "gutshot":    "Gutshot",
+  "combo-draw": "Combo Draw",
+  "backdoor":   "Backdoor",
+  "none":       "",
 };
 
 export function RecommendationPanel({ recommendation, equity }: RecommendationPanelProps) {
@@ -38,7 +47,7 @@ export function RecommendationPanel({ recommendation, equity }: RecommendationPa
   }
 
   const config = actionConfig[recommendation.primaryAction];
-  const sizingOptions = ["33%", "50%", "66%", "75%", "100%", "all-in"];
+  const sizingOptions = ["25%", "33%", "50%", "66%", "75%", "100%", "all-in"];
 
   return (
     <div className="rounded-xl bg-[hsl(220,18%,8%)] border border-[hsl(220,15%,15%)] p-4">
@@ -46,7 +55,7 @@ export function RecommendationPanel({ recommendation, equity }: RecommendationPa
         <Target className="w-4 h-4 text-primary" />
         <h3 className="font-semibold text-foreground text-sm">Recomendação</h3>
       </div>
-      
+
       {/* Main action */}
       <div className={cn(
         "flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold border mb-4",
@@ -69,7 +78,7 @@ export function RecommendationPanel({ recommendation, equity }: RecommendationPa
         </div>
         <div className="flex items-center gap-2">
           <div className="w-16 h-1.5 bg-[hsl(220,15%,15%)] rounded-full overflow-hidden">
-            <div 
+            <div
               className={cn(
                 "h-full rounded-full transition-all",
                 recommendation.confidence >= 70 ? "bg-success" :
@@ -88,7 +97,7 @@ export function RecommendationPanel({ recommendation, equity }: RecommendationPa
       {(recommendation.primaryAction === "bet" || recommendation.primaryAction === "raise") && (
         <div className="mb-3">
           <p className="text-xs text-muted-foreground mb-2">Sizing Sugerido</p>
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-4 gap-1">
             {sizingOptions.map((size) => (
               <button
                 key={size}
@@ -102,6 +111,26 @@ export function RecommendationPanel({ recommendation, equity }: RecommendationPa
                 {size}
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Draw info */}
+      {recommendation.drawInfo && recommendation.drawInfo.type !== "none" && (
+        <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/10 border border-primary/20 mb-3">
+          <Flame className="w-3.5 h-3.5 text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-primary">
+                {drawTypeLabels[recommendation.drawInfo.type] || recommendation.drawInfo.type}
+              </span>
+              <span className="text-xs font-mono text-primary">
+                {recommendation.drawInfo.outs} outs
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Regra 2&4: +{recommendation.drawInfo.rule2}% (street) / +{recommendation.drawInfo.rule4}% (river)
+            </p>
           </div>
         </div>
       )}
@@ -124,7 +153,7 @@ export function RecommendationPanel({ recommendation, equity }: RecommendationPa
             </span>
           </div>
         </div>
-        
+
         {recommendation.evEstimate !== undefined && (
           <div className="p-2 rounded-lg bg-[hsl(220,15%,10%)]">
             <p className="text-xs text-muted-foreground mb-0.5">EV Estimado</p>
@@ -140,11 +169,14 @@ export function RecommendationPanel({ recommendation, equity }: RecommendationPa
       </div>
 
       {/* Pot odds if facing bet */}
-      {recommendation.equityNeeded !== undefined && (
+      {recommendation.potOdds !== undefined && (
         <div className="flex items-center gap-2 p-2 rounded-lg bg-[hsl(220,15%,10%)] mb-3">
-          <AlertCircle className="w-3.5 h-3.5 text-muted-foreground" />
+          <AlertCircle className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           <span className="text-xs text-muted-foreground">
-            Precisa de <span className="text-foreground font-bold">{recommendation.equityNeeded}%</span> equity para call
+            Pot odds: <span className="text-foreground font-bold">{recommendation.potOdds}%</span>
+            {recommendation.equityNeeded !== undefined && (
+              <> &mdash; precisa de <span className="text-foreground font-bold">{recommendation.equityNeeded}%</span> equity</>
+            )}
           </span>
         </div>
       )}
@@ -159,7 +191,9 @@ export function RecommendationPanel({ recommendation, equity }: RecommendationPa
                 key={i}
                 className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[hsl(220,15%,12%)] text-xs"
               >
-                <span className="text-muted-foreground capitalize">{alt.action}</span>
+                <span className="text-muted-foreground capitalize">
+                  {alt.label ?? alt.action}
+                </span>
                 {alt.sizing && <span className="text-foreground">{alt.sizing}</span>}
                 <span className="text-muted-foreground/70">{alt.frequency}%</span>
               </div>

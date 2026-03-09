@@ -6,6 +6,7 @@ import { HandInput } from "@/components/betting/HandInput";
 import { BoardTexturePanel } from "@/components/betting/BoardTexturePanel";
 import { RecommendationPanel } from "@/components/betting/RecommendationPanel";
 import { MultiStreetPlan } from "@/components/betting/MultiStreetPlan";
+import { SolverPanel } from "@/components/betting/SolverPanel";
 import { HandHistoryPanel, HandHistoryEntry } from "@/components/betting/HandHistoryPanel";
 import { GameContextForm } from "@/components/betting/GameContextForm";
 import { AIAnalysisPanel } from "@/components/betting/AIAnalysisPanel";
@@ -21,6 +22,16 @@ import {
   StreetPlan,
   GameContext
 } from "@/lib/pokerAnalysis";
+import {
+  calculateMDF,
+  analyzeSPR,
+  calculateGeometricSizing,
+  calculateGtoFrequencies,
+  MDFResult,
+  SPRAnalysis,
+  GeometricSizing,
+  GtoFrequencies,
+} from "@/lib/solverEngine";
 
 type Suit = "hearts" | "diamonds" | "clubs" | "spades";
 type Rank = "A" | "K" | "Q" | "J" | "T" | "9" | "8" | "7" | "6" | "5" | "4" | "3" | "2";
@@ -35,7 +46,7 @@ export default function BettingAssistant() {
   const [heroCards, setHeroCards] = useState<Card[]>([]);
   const [boardCards, setBoardCards] = useState<Card[]>([]);
   const [showCardPicker, setShowCardPicker] = useState<"hero" | "board" | null>(null);
-  
+
   // Game context state
   const [potSize, setPotSize] = useState("45");
   const [stackSize, setStackSize] = useState("100");
@@ -43,18 +54,18 @@ export default function BettingAssistant() {
   const [position, setPosition] = useState<"ip" | "oop">("ip");
   const [facingBet, setFacingBet] = useState(false);
   const [villainType, setVillainType] = useState<"unknown" | "tight" | "loose" | "aggressive" | "passive">("unknown");
-  
+
   // Results state
   const [recommendation, setRecommendation] = useState<BettingRecommendation | null>(null);
   const [multiStreetPlan, setMultiStreetPlan] = useState<StreetPlan[]>([]);
   const [history, setHistory] = useState<HandHistoryEntry[]>([]);
-  
+
   // AI Analysis hook
   const { isAnalyzing, aiAnalysis, error: aiError, analyzeWithAI, clearAnalysis, usage, planName, canUseAnalysis } = useGTOAnalysis();
 
   // Computed values
   const allUsedCards = useMemo(() => [...heroCards, ...boardCards], [heroCards, boardCards]);
-  
+
   const currentStreet = useMemo((): "flop" | "turn" | "river" => {
     if (boardCards.length >= 5) return "river";
     if (boardCards.length >= 4) return "turn";
@@ -68,6 +79,38 @@ export default function BettingAssistant() {
   const handAnalysis = useMemo(() => {
     return analyzeHand(heroCards, boardCards);
   }, [heroCards, boardCards]);
+
+  // Solver metrics — computed after recommendation
+  const solverMDF = useMemo((): MDFResult | undefined => {
+    if (!recommendation || !facingBet || !betSize) return undefined;
+    return calculateMDF(parseFloat(potSize) || 45, parseFloat(betSize) || 0);
+  }, [recommendation, facingBet, betSize, potSize]);
+
+  const solverSPR = useMemo((): SPRAnalysis | undefined => {
+    if (!recommendation) return undefined;
+    return analyzeSPR(parseFloat(stackSize) || 100, parseFloat(potSize) || 45);
+  }, [recommendation, stackSize, potSize]);
+
+  const solverGeo = useMemo((): GeometricSizing | undefined => {
+    if (!recommendation) return undefined;
+    const stack = parseFloat(stackSize) || 100;
+    const pot = parseFloat(potSize) || 45;
+    const remainingStreets = currentStreet === "flop" ? 3 : currentStreet === "turn" ? 2 : 1;
+    return calculateGeometricSizing(stack, pot, remainingStreets);
+  }, [recommendation, stackSize, potSize, currentStreet]);
+
+  const solverGtoFreq = useMemo((): GtoFrequencies | undefined => {
+    if (!recommendation) return undefined;
+    const potOdds = facingBet && betSize
+      ? (parseFloat(betSize) / (parseFloat(potSize) + parseFloat(betSize))) * 100
+      : 33;
+    return calculateGtoFrequencies(
+      handAnalysis.equity,
+      potOdds,
+      handAnalysis.category,
+      boardTexture.wetness
+    );
+  }, [recommendation, handAnalysis, boardTexture, facingBet, betSize, potSize]);
 
   // Handlers
   const handleCardSelect = useCallback((card: Card) => {
@@ -113,7 +156,6 @@ export default function BettingAssistant() {
     const plans = getMultiStreetPlan(context);
     setMultiStreetPlan(plans);
 
-    // Add to history
     const entry: HandHistoryEntry = {
       id: Date.now().toString(),
       timestamp: new Date(),
@@ -143,12 +185,12 @@ export default function BettingAssistant() {
 
   const handleRequestAIAnalysis = useCallback(() => {
     if (!recommendation || heroCards.length < 2 || boardCards.length < 3) return;
-    
-    // Derive draws from hand analysis
+
     const draws: string[] = [];
     if (handAnalysis.hasFlushDraw) draws.push("Flush Draw");
-    if (handAnalysis.hasStraightDraw) draws.push("Straight Draw");
-    
+    if (handAnalysis.hasStraightDraw) draws.push(handAnalysis.isOESD ? "OESD" : "Gutshot");
+    if (handAnalysis.isComboDraws) draws.push("Combo Draw");
+
     analyzeWithAI({
       heroCards,
       boardCards,
@@ -204,9 +246,9 @@ export default function BettingAssistant() {
           </div>
           <div className="flex items-center gap-2">
             <UsageBadge />
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleReset}
               className="border-[hsl(220,15%,20%)] hover:bg-[hsl(220,15%,15%)] h-8"
             >
@@ -217,9 +259,8 @@ export default function BettingAssistant() {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-          {/* Left Column - Input */}
+          {/* Left Column — Input */}
           <div className="xl:col-span-5 space-y-4">
-            {/* Hero Hand */}
             <HandInput
               label="Sua Mão"
               cards={heroCards}
@@ -230,7 +271,6 @@ export default function BettingAssistant() {
               buttonLabel={heroCards.length < 2 ? "Selecionar" : "Editar"}
             />
 
-            {/* Board */}
             <HandInput
               label="Board"
               cards={boardCards}
@@ -242,7 +282,6 @@ export default function BettingAssistant() {
               sublabels={["Flop", "Turn", "River"]}
             />
 
-            {/* Card Picker */}
             {showCardPicker && (
               <CardPicker
                 usedCards={allUsedCards}
@@ -251,7 +290,6 @@ export default function BettingAssistant() {
               />
             )}
 
-            {/* Game Context */}
             <GameContextForm
               potSize={potSize}
               setPotSize={setPotSize}
@@ -267,10 +305,9 @@ export default function BettingAssistant() {
               setVillainType={setVillainType}
             />
 
-            {/* Analyze Button */}
-            <Button 
-              variant="gold" 
-              size="lg" 
+            <Button
+              variant="gold"
+              size="lg"
               className="w-full h-10"
               onClick={handleAnalyze}
               disabled={!canAnalyze}
@@ -280,23 +317,30 @@ export default function BettingAssistant() {
             </Button>
           </div>
 
-          {/* Center Column - Results */}
+          {/* Center Column — Results */}
           <div className="xl:col-span-4 space-y-4">
-            {/* Recommendation */}
-            <RecommendationPanel 
-              recommendation={recommendation} 
+            <RecommendationPanel
+              recommendation={recommendation}
               equity={handAnalysis.equity}
             />
 
-            {/* Multi-Street Plan */}
+            {/* Solver Panel */}
+            {recommendation && (
+              <SolverPanel
+                mdf={solverMDF}
+                spr={solverSPR}
+                geo={solverGeo}
+                gtoFreq={solverGtoFreq}
+              />
+            )}
+
             {multiStreetPlan.length > 0 && (
-              <MultiStreetPlan 
-                plans={multiStreetPlan} 
+              <MultiStreetPlan
+                plans={multiStreetPlan}
                 currentStreet={currentStreet}
               />
             )}
 
-            {/* AI Analysis */}
             <AIAnalysisPanel
               analysis={aiAnalysis}
               isLoading={isAnalyzing}
@@ -306,9 +350,8 @@ export default function BettingAssistant() {
             />
           </div>
 
-          {/* Right Column - Analysis & History */}
+          {/* Right Column — Analysis & History */}
           <div className="xl:col-span-3 space-y-4">
-            {/* Board Texture */}
             {boardCards.length >= 3 && (
               <BoardTexturePanel
                 texture={boardTexture}
@@ -316,7 +359,6 @@ export default function BettingAssistant() {
               />
             )}
 
-            {/* Hand History */}
             <HandHistoryPanel
               history={history}
               onSelect={handleHistorySelect}
