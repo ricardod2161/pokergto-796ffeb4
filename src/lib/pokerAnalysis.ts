@@ -611,21 +611,14 @@ export function getMultiStreetPlan(context: GameContext): StreetPlan[] {
         reasoning = "River sem melhorar - give up ou value check";
       }
     }
-    // Draw that missed (weakened or air)
-    else if (handAnalysis.category === "draw" && (effectiveCategory === "weak-made" || effectiveCategory === "air")) {
-      if (effectiveCategory === "weak-made") {
-        action = "check";
-        reasoning = "Draw não completou no turn - controle de pote, aguarde river";
-      } else {
-        action = "check";
-        reasoning = "Draw não completou — give up ou bluff pequeno em boards favoráveis";
-      }
+    // Draw that missed (weakened or air) — effectiveCategory already set above
+    else if (handAnalysis.category === "draw" && effectiveCategory === "weak-made") {
+      action = "check";
+      reasoning = "Draw não completou no turn - controle de pote, aguarde river";
     }
-    // Draw that completed
-    else if (handAnalysis.category === "draw" && effectiveCategory === "monster") {
-      action = "bet";
-      sizing = "66%";
-      reasoning = "Draw completou - value bet forte";
+    else if (handAnalysis.category === "draw" && effectiveCategory === "air") {
+      action = "check";
+      reasoning = "Draw não completou — give up ou bluff pequeno em boards favoráveis";
     }
     // Marginal hands - pot control
     else if (effectiveCategory === "top-pair" || effectiveCategory === "second-pair") {
