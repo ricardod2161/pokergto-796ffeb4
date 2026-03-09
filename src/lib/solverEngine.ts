@@ -319,8 +319,8 @@ export function analyzeBlockers(
     const r1 = r1Map[combo.hand[0]];
     const r2 = r1Map[combo.hand[1]];
 
-    const heroHasR1 = heroRanks.has(r1);
-    const heroHasR2 = heroRanks.has(r2) && r2 !== r1;
+    const heroHasR1 = r1 !== undefined && heroRanks.has(r1 as unknown as number);
+    const heroHasR2 = r2 !== undefined && r2 !== r1 && heroRanks.has(r2 as unknown as number);
 
     if (heroHasR1 || heroHasR2) {
       let blocked = 0;
