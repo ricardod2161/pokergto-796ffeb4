@@ -80,7 +80,7 @@ function detectSite(handHistory: string): string {
   if (handHistory.includes("PokerStars")) return "PokerStars";
   if (handHistory.includes("888poker") || handHistory.includes("Pacific Poker")) return "888poker";
   if (handHistory.includes("partypoker")) return "PartyPoker";
-  if (handHistory.includes("GGPoker") || handHistory.includes("GG Network")) return "GGPoker";
+  if (handHistory.match(/Poker Hand #HD/i) || handHistory.includes("GGPoker") || handHistory.includes("GG Network")) return "GGPoker";
   if (handHistory.includes("Winamax")) return "Winamax";
   if (handHistory.includes("iPoker")) return "iPoker";
   return "Unknown";
@@ -102,7 +102,6 @@ function parsePokerStarsHand(handHistory: string): ParsedHand | null {
     
     // Parse players
     const players: Player[] = [];
-    const positions = ["BTN", "SB", "BB", "UTG", "UTG+1", "MP", "MP+1", "HJ", "CO"];
     
     for (const line of lines) {
       const seatMatch = line.match(/Seat (\d+): (.+?) \((\$?[\d.]+)/);
@@ -110,7 +109,6 @@ function parsePokerStarsHand(handHistory: string): ParsedHand | null {
         const playerName = seatMatch[2];
         const stack = parseFloat(seatMatch[3].replace("$", ""));
         
-        // Try to determine position
         let position = "Unknown";
         if (line.includes("button")) position = "BTN";
         else if (line.includes("small blind")) position = "SB";
@@ -168,7 +166,6 @@ function parsePokerStarsHand(handHistory: string): ParsedHand | null {
       else if (line.includes("*** TURN ***")) currentStreet = "turn";
       else if (line.includes("*** RIVER ***")) currentStreet = "river";
       
-      // Parse action
       const actionPatterns = [
         { regex: /(.+?): folds/, action: "fold" as ActionType },
         { regex: /(.+?): checks/, action: "check" as ActionType },
@@ -237,6 +234,211 @@ function parsePokerStarsHand(handHistory: string): ParsedHand | null {
   }
 }
 
+// ──────────────────────────────────────────
+// GGPoker Parser
+// Format: "Poker Hand #HD123456..."
+// Hero marker: [ME] after player name
+// Blinds: "Blinds 0.50/1.00"
+// ──────────────────────────────────────────
+
+function parseGGPokerHand(handHistory: string): ParsedHand | null {
+  try {
+    const lines = handHistory.split("\n").map(l => l.trim()).filter(Boolean);
+
+    // Header: "Poker Hand #HDxxx: Hold'em No Limit (0.50/1.00)"
+    const headerMatch = lines[0]?.match(/Poker Hand #(HD[\w]+).*?(Hold'em No Limit|Hold'em Limit|Omaha)/i);
+    const handId = headerMatch?.[1] || "Unknown";
+    const gameType = headerMatch?.[2] || "Hold'em No Limit";
+
+    // Blinds from header or "Blinds X/Y" line
+    let sb = 0, bb = 0;
+    const blindsHeader = lines[0]?.match(/\((\$?[\d.]+)\/(\$?[\d.]+)\)/);
+    if (blindsHeader) {
+      sb = parseFloat(blindsHeader[1].replace("$", ""));
+      bb = parseFloat(blindsHeader[2].replace("$", ""));
+    }
+    for (const line of lines) {
+      const blindsLine = line.match(/^Blinds\s+(\$?[\d.]+)\/(\$?[\d.]+)/i);
+      if (blindsLine) {
+        sb = parseFloat(blindsLine[1].replace("$", ""));
+        bb = parseFloat(blindsLine[2].replace("$", ""));
+        break;
+      }
+    }
+
+    // Parse players: "Seat X: PlayerName [ME] (stack)"
+    const players: Player[] = [];
+    let heroName = "";
+
+    for (const line of lines) {
+      const seatMatch = line.match(/Seat (\d+): (.+?)(\s*\[ME\])?\s*\((\$?[\d.]+)/);
+      if (seatMatch) {
+        const rawName = seatMatch[2].trim();
+        const isMe = Boolean(seatMatch[3]);
+        const stack = parseFloat(seatMatch[4].replace("$", ""));
+
+        let position = "Unknown";
+        if (line.toLowerCase().includes("button") || line.includes("(BTN)")) position = "BTN";
+        else if (line.toLowerCase().includes("small blind") || line.includes("(SB)")) position = "SB";
+        else if (line.toLowerCase().includes("big blind") || line.includes("(BB)")) position = "BB";
+
+        players.push({ name: rawName, position, stack });
+        if (isMe) heroName = rawName;
+      }
+    }
+
+    // Identify hero by [ME] in dealt line if not found yet
+    if (!heroName) {
+      for (const line of lines) {
+        if (line.includes("[ME]")) {
+          const m = line.match(/^(.+?)\s*\[ME\]/);
+          if (m) heroName = m[1].trim();
+        }
+      }
+    }
+
+    // Hero cards: "PlayerName [ME]: cards [Ah Kd]"
+    let heroCards: { rank: CardRank; suit: CardSuit }[] = [];
+    for (const line of lines) {
+      const dealtGG = line.match(/Dealt to (.+?)\s*(?:\[ME\])?\s*\[(.+?)\]/);
+      if (dealtGG) {
+        const name = dealtGG[1].trim();
+        if (!heroName || name === heroName || line.includes("[ME]")) {
+          heroCards = parseCards(dealtGG[2]);
+          if (!heroName) heroName = name;
+          break;
+        }
+      }
+    }
+
+    const hero = players.find(p => p.name === heroName) || null;
+    if (hero && heroCards.length) hero.cards = heroCards;
+
+    // Community cards
+    let flopCards: { rank: CardRank; suit: CardSuit }[] = [];
+    let turnCard: { rank: CardRank; suit: CardSuit } | null = null;
+    let riverCard: { rank: CardRank; suit: CardSuit } | null = null;
+
+    for (const line of lines) {
+      if (line.match(/\*\*\*\s*FLOP\s*\*\*\*/i)) {
+        const m = line.match(/\[(.+?)\]/);
+        if (m) flopCards = parseCards(m[1]);
+      } else if (line.match(/\*\*\*\s*TURN\s*\*\*\*/i)) {
+        const m = line.match(/\]\s*\[(.+?)\]/);
+        if (m) { const cards = parseCards(m[1]); turnCard = cards[0] || null; }
+      } else if (line.match(/\*\*\*\s*RIVER\s*\*\*\*/i)) {
+        const m = line.match(/\]\s*\[(.+?)\]/);
+        if (m) { const cards = parseCards(m[1]); riverCard = cards[0] || null; }
+      }
+    }
+
+    // Actions
+    const actions: Action[] = [];
+    let currentStreet: Street = "preflop";
+
+    for (const line of lines) {
+      if (line.match(/\*\*\*\s*FLOP\s*\*\*\*/i)) { currentStreet = "flop"; continue; }
+      if (line.match(/\*\*\*\s*TURN\s*\*\*\*/i)) { currentStreet = "turn"; continue; }
+      if (line.match(/\*\*\*\s*RIVER\s*\*\*\*/i)) { currentStreet = "river"; continue; }
+
+      const actionPatterns = [
+        { regex: /^(.+?)\s*(?:\[ME\])?\s*:\s*folds/, action: "fold" as ActionType },
+        { regex: /^(.+?)\s*(?:\[ME\])?\s*:\s*checks/, action: "check" as ActionType },
+        { regex: /^(.+?)\s*(?:\[ME\])?\s*:\s*calls\s+(\$?[\d.]+)/, action: "call" as ActionType },
+        { regex: /^(.+?)\s*(?:\[ME\])?\s*:\s*bets\s+(\$?[\d.]+)/, action: "bet" as ActionType },
+        { regex: /^(.+?)\s*(?:\[ME\])?\s*:\s*raises.+to\s+(\$?[\d.]+)/, action: "raise" as ActionType },
+        { regex: /^(.+?)\s*(?:\[ME\])?\s*:\s*(?:is )?all.in/, action: "all-in" as ActionType },
+      ];
+
+      for (const pattern of actionPatterns) {
+        const match = line.match(pattern.regex);
+        if (match) {
+          const playerName = match[1].trim();
+          const amount = match[2] ? parseFloat(match[2].replace("$", "")) : undefined;
+          const isHero = playerName === heroName || line.includes("[ME]");
+          actions.push({ player: playerName, action: pattern.action, amount, street: currentStreet, isHero });
+          break;
+        }
+      }
+    }
+
+    // Pot + winner
+    let potSize = 0;
+    let winner: string | null = null;
+    let showdown = false;
+
+    for (const line of lines) {
+      const potMatch = line.match(/Total pot\s+(\$?[\d.]+)/);
+      if (potMatch) potSize = parseFloat(potMatch[1].replace("$", ""));
+
+      const winnerMatch = line.match(/(.+?)\s*(?:\[ME\])?\s*collected\s+(\$?[\d.]+)/);
+      if (winnerMatch) winner = winnerMatch[1].trim();
+
+      if (line.match(/SHOW\s*DOWN/i)) showdown = true;
+    }
+
+    return {
+      site: "GGPoker",
+      handId,
+      gameType,
+      blinds: { sb, bb },
+      players,
+      hero,
+      heroPosition: hero?.position || "Unknown",
+      heroCards,
+      communityCards: { flop: flopCards, turn: turnCard, river: riverCard },
+      actions,
+      potSize,
+      winner,
+      showdown,
+    };
+  } catch (error) {
+    console.error("Error parsing GGPoker hand:", error);
+    return null;
+  }
+}
+
+// ──────────────────────────────────────────
+// Validate a parsed hand for structural errors
+// ──────────────────────────────────────────
+
+export function validateParsedHand(hand: ParsedHand): string[] {
+  const errors: string[] = [];
+
+  // Hero card count
+  if (hand.heroCards.length > 2) {
+    errors.push(`Herói tem mais de 2 cartas (${hand.heroCards.length} encontradas)`);
+  }
+
+  // Board card count
+  const boardCards = [
+    ...hand.communityCards.flop,
+    ...(hand.communityCards.turn ? [hand.communityCards.turn] : []),
+    ...(hand.communityCards.river ? [hand.communityCards.river] : []),
+  ];
+
+  if (boardCards.length > 5) {
+    errors.push(`Board com mais de 5 cartas (${boardCards.length} encontradas)`);
+  }
+
+  // Duplicate detection across all known cards
+  const allCards = [...hand.heroCards, ...boardCards];
+  const cardSet = new Set<string>();
+
+  for (const card of allCards) {
+    const key = `${card.rank}${card.suit}`;
+    if (cardSet.has(key)) {
+      const suitNames: Record<CardSuit, string> = {
+        hearts: "♥", diamonds: "♦", clubs: "♣", spades: "♠"
+      };
+      errors.push(`Carta duplicada: ${card.rank}${suitNames[card.suit]} aparece mais de uma vez`);
+    }
+    cardSet.add(key);
+  }
+
+  return errors;
+}
+
 export function parseHandHistory(handHistory: string): ParsedHand | null {
   if (!handHistory.trim()) return null;
   
@@ -245,13 +447,12 @@ export function parseHandHistory(handHistory: string): ParsedHand | null {
   switch (site) {
     case "PokerStars":
       return parsePokerStarsHand(handHistory);
+    case "GGPoker":
+      return parseGGPokerHand(handHistory);
     case "888poker":
     case "PartyPoker":
-    case "GGPoker":
-      // For now, try PokerStars parser as fallback (similar format)
       return parsePokerStarsHand(handHistory);
     default:
-      // Try generic parser
       return parsePokerStarsHand(handHistory);
   }
 }
@@ -273,7 +474,6 @@ export function generateSampleHand(): ParsedHand {
     return card;
   };
 
-  // Generate hero cards - prefer premium hands for interesting demos
   const premiumHands: { rank: CardRank; suit: CardSuit }[][] = [
     [{ rank: "A", suit: "spades" }, { rank: "K", suit: "hearts" }],
     [{ rank: "Q", suit: "diamonds" }, { rank: "Q", suit: "clubs" }],
@@ -287,12 +487,10 @@ export function generateSampleHand(): ParsedHand {
   const heroHand = premiumHands[Math.floor(Math.random() * premiumHands.length)];
   heroHand.forEach(c => usedCards.add(`${c.rank}${c.suit}`));
 
-  // Generate random board
   const flopCards = [getRandomCard(), getRandomCard(), getRandomCard()];
   const turnCard = getRandomCard();
   const riverCard = getRandomCard();
 
-  // Generate random actions with varying bet sizes
   const openSizes = [6, 7, 8, 5];
   const openSize = openSizes[Math.floor(Math.random() * openSizes.length)];
   const threeBetMultiplier = Math.random() > 0.5 ? 3 : 3.5;
@@ -304,7 +502,6 @@ export function generateSampleHand(): ParsedHand {
   const turnBetSizes = [35, 45, 55, 40, 50];
   const turnBetSize = turnBetSizes[Math.floor(Math.random() * turnBetSizes.length)];
 
-  // Random pot size based on action progression
   const potSizes = [85, 120, 150, 180, 220, 245, 280];
   const potSize = potSizes[Math.floor(Math.random() * potSizes.length)];
 
@@ -317,7 +514,6 @@ export function generateSampleHand(): ParsedHand {
     { player: "Vilão", action: "call", amount: flopBetSize, street: "flop", isHero: false },
   ];
 
-  // Randomly add turn action
   if (Math.random() > 0.3) {
     actions.push({ player: "Vilão", action: "check", street: "turn", isHero: false });
     actions.push({ player: "Herói", action: "bet", amount: turnBetSize, street: "turn", isHero: true });

@@ -80,22 +80,45 @@ export function analyzeBoardTexture(board: Card[]): BoardTexture {
   
   // Connectivity analysis
   const uniqueValues = [...new Set(values)].sort((a, b) => b - a);
+
+  // FIX: Ace-low straight support for board
+  const hasAce = uniqueValues.includes(14);
+  const hasLowCards = uniqueValues.some(v => v <= 5);
+  const valuesForStraight = (hasAce && hasLowCards)
+    ? [1, ...uniqueValues]
+    : [...uniqueValues];
+
   let maxGap = 0;
   for (let i = 1; i < uniqueValues.length; i++) {
     maxGap = Math.max(maxGap, uniqueValues[i - 1] - uniqueValues[i]);
   }
   const connected = maxGap <= 2 && uniqueValues.length >= 3;
   
-  // Straight draw analysis
+  // Straight draw analysis using ace-low aware values
   let straightDraw: BoardTexture["straightDraw"] = "none";
-  const spread = uniqueValues[0] - uniqueValues[uniqueValues.length - 1];
-  
-  if (spread <= 4 && uniqueValues.length >= 5) {
+
+  // Check completed straight
+  let boardHasStraight = false;
+  for (let i = 0; i <= valuesForStraight.length - 5; i++) {
+    if (valuesForStraight[i + 4] - valuesForStraight[i] === 4) {
+      boardHasStraight = true;
+      break;
+    }
+  }
+
+  if (boardHasStraight) {
     straightDraw = "completed";
-  } else if (spread <= 4 && uniqueValues.length >= 3) {
-    straightDraw = "oesd";
-  } else if (spread <= 5 && uniqueValues.length >= 3) {
-    straightDraw = "gutshot";
+  } else {
+    // OESD: 4 consecutive values spanning exactly 3 (e.g. 5-6-7-8)
+    let isOESD = false;
+    let isGutshot = false;
+    for (let i = 0; i <= valuesForStraight.length - 4; i++) {
+      const span = valuesForStraight[i + 3] - valuesForStraight[i];
+      if (span === 3) { isOESD = true; break; }
+      if (span === 4) { isGutshot = true; }
+    }
+    if (isOESD) straightDraw = "oesd";
+    else if (isGutshot) straightDraw = "gutshot";
   }
   
   // Wetness score
@@ -148,6 +171,7 @@ export interface HandAnalysis {
   category: HandStrengthCategory;
   hasFlushDraw: boolean;
   hasStraightDraw: boolean;
+  isOESD: boolean;           // true = OESD (8 outs), false = gutshot (4 outs)
   drawOuts: number;
   madeHandStrength: number; // 0-100
   equity: number; // 0-100 estimated
@@ -159,6 +183,7 @@ export function analyzeHand(heroCards: Card[], board: Card[]): HandAnalysis {
       category: "air",
       hasFlushDraw: false,
       hasStraightDraw: false,
+      isOESD: false,
       drawOuts: 0,
       madeHandStrength: 0,
       equity: 50
@@ -206,33 +231,59 @@ export function analyzeHand(heroCards: Card[], board: Card[]): HandAnalysis {
   const hasFlushDraw = heroSuits.some(s => suitCounts[s] >= 4);
   const hasFlush = heroSuits.some(s => suitCounts[s] >= 5);
   
-  // Straight draw (simplified)
+  // Straight draw — FIX: hero must participate + ace-low support
   const allValues = allCards.map(c => RANK_VALUES[c.rank]);
-  const uniqueValues = [...new Set(allValues)].sort((a, b) => a - b);
+  const uniqueAllValues = [...new Set(allValues)].sort((a, b) => a - b);
+
+  // Ace-low support
+  const hasAce = uniqueAllValues.includes(14);
+  const hasLowCards = uniqueAllValues.some(v => v <= 5);
+  const uniqueValues = (hasAce && hasLowCards)
+    ? [1, ...uniqueAllValues]
+    : [...uniqueAllValues];
   
+  // Also build heroValues with low-ace support
+  const heroValuesExt = heroValues.includes(14) ? [...heroValues, 1] : heroValues;
+
   let hasStraightDraw = false;
   let hasStraight = false;
-  
-  // Check for 5 consecutive
+  let isOESD = false;
+
+  // Check for completed straight (hero must use at least one card)
   for (let i = 0; i <= uniqueValues.length - 5; i++) {
     if (uniqueValues[i + 4] - uniqueValues[i] === 4) {
-      hasStraight = true;
-      break;
+      const straightVals = uniqueValues.slice(i, i + 5);
+      const heroContributes = heroValuesExt.some(v => straightVals.includes(v));
+      if (heroContributes) {
+        hasStraight = true;
+        break;
+      }
     }
   }
   
-  // Check for 4 within 5 gap
+  // Check for straight draw (4 cards within span 4, hero participates)
   for (let i = 0; i <= uniqueValues.length - 4; i++) {
-    if (uniqueValues[i + 3] - uniqueValues[i] <= 4) {
-      hasStraightDraw = true;
-      break;
+    const span = uniqueValues[i + 3] - uniqueValues[i];
+    if (span <= 4) {
+      const drawValues = uniqueValues.slice(i, i + 4);
+      const heroParticipates = heroValuesExt.some(v => drawValues.includes(v));
+      if (heroParticipates) {
+        hasStraightDraw = true;
+        // OESD: 4 consecutives with no gap (span===3)
+        if (span === 3) {
+          isOESD = true;
+        }
+        break;
+      }
     }
   }
   
-  // Calculate draw outs
+  // FIX: Calculate draw outs correctly (OESD=8, gutshot=4)
   let drawOuts = 0;
   if (hasFlushDraw && !hasFlush) drawOuts += 9;
-  if (hasStraightDraw && !hasStraight) drawOuts += hasStraightDraw ? 8 : 4;
+  if (hasStraightDraw && !hasStraight) {
+    drawOuts += isOESD ? 8 : 4;
+  }
   
   // Determine category
   let category: HandStrengthCategory;
@@ -264,13 +315,14 @@ export function analyzeHand(heroCards: Card[], board: Card[]): HandAnalysis {
   // Estimate equity
   let equity = madeHandStrength;
   if (hasFlushDraw && !hasFlush) equity += 18;
-  if (hasStraightDraw && !hasStraight) equity += 12;
+  if (hasStraightDraw && !hasStraight) equity += isOESD ? 14 : 8;
   equity = Math.min(95, Math.max(5, equity));
   
   return {
     category,
     hasFlushDraw: hasFlushDraw && !hasFlush,
     hasStraightDraw: hasStraightDraw && !hasStraight,
+    isOESD,
     drawOuts,
     madeHandStrength,
     equity
@@ -311,8 +363,23 @@ export function getRecommendation(context: GameContext): BettingRecommendation {
   const boardTexture = analyzeBoardTexture(context.board);
   const handAnalysis = analyzeHand(context.heroCards, context.board);
   
-  const { category, hasFlushDraw, hasStraightDraw, equity } = handAnalysis;
+  const { category, hasFlushDraw, hasStraightDraw, equity: rawEquity } = handAnalysis;
   const { wetness, wetnessScore, paired } = boardTexture;
+
+  // FIX: Villain-type equity adjustments
+  let adjustedEquity = rawEquity;
+  if (context.villainType === "tight") adjustedEquity -= 8;
+  if (context.villainType === "loose") adjustedEquity += 5;
+  adjustedEquity = Math.max(5, Math.min(95, adjustedEquity));
+
+  // Fold equity bonus for semi-bluffs
+  let foldEquityBonus = 0;
+  if (hasFlushDraw || hasStraightDraw) {
+    if (context.villainType === "aggressive") foldEquityBonus = 15;
+    if (context.villainType === "passive") foldEquityBonus = -20;
+  }
+
+  const equity = adjustedEquity;
   
   // Base recommendation logic
   let primaryAction: BettingAction = "check";
@@ -365,7 +432,7 @@ export function getRecommendation(context: GameContext): BettingRecommendation {
   }
   // Draws
   else if (category === "draw") {
-    const drawStrength = (hasFlushDraw ? 1 : 0) + (hasStraightDraw ? 0.7 : 0);
+    const effectiveFoldEquity = 20 + foldEquityBonus;
     
     if (context.facingBet) {
       const impliedOdds = context.stackSize > context.potSize * 2;
@@ -379,8 +446,7 @@ export function getRecommendation(context: GameContext): BettingRecommendation {
         reason = "Draw fraco para pot odds atual";
       }
     } else {
-      // Semi-bluff opportunity
-      if (context.position === "ip" || wetnessScore > 50) {
+      if (effectiveFoldEquity > 10 && (context.position === "ip" || wetnessScore > 50)) {
         primaryAction = "bet";
         sizing = "66%";
         confidence = 60;
@@ -415,7 +481,6 @@ export function getRecommendation(context: GameContext): BettingRecommendation {
       confidence = 85;
       reason = "Sem equity - fold limpo";
     } else {
-      // Bluff spots
       const goodBluffSpot = context.position === "ip" && 
                            (paired || wetness === "dry") && 
                            context.street !== "river";
@@ -437,7 +502,7 @@ export function getRecommendation(context: GameContext): BettingRecommendation {
   // EV estimate
   let evEstimate = 0;
   if (primaryAction === "bet" || primaryAction === "raise") {
-    const foldEquity = category === "air" ? 40 : 20;
+    const foldEquity = category === "air" ? 40 : 20 + foldEquityBonus;
     const valueEquity = equity / 100;
     evEstimate = (foldEquity / 100) * context.potSize + (1 - foldEquity / 100) * valueEquity * context.potSize * 1.5;
     evEstimate = Math.round(evEstimate * 10) / 10;
@@ -474,7 +539,21 @@ export function getMultiStreetPlan(context: GameContext): StreetPlan[] {
   
   const streets: Array<"flop" | "turn" | "river"> = ["flop", "turn", "river"];
   const startIndex = streets.indexOf(context.street);
-  
+
+  // FIX: Probabilistic run-out model for draws
+  // Approximate: ~35% chance draw completes flop→turn, ~18% turn→river
+  const DRAW_COMPLETE_FLOP_TURN = 0.35;
+  const DRAW_COMPLETE_TURN_RIVER = 0.18;
+
+  // Use a deterministic seed based on hand to avoid re-renders changing the plan
+  const handSeed = context.heroCards.reduce((acc, c) => acc + c.rank.charCodeAt(0) + c.suit.charCodeAt(0), 0);
+  const pseudoRand = (salt: number) => {
+    const x = Math.sin(handSeed + salt) * 10000;
+    return x - Math.floor(x);
+  };
+
+  let drawCompleted: boolean | null = null; // null = not determined yet
+
   for (let i = startIndex; i < 3; i++) {
     const street = streets[i];
     const spr = currentStack / currentPot;
@@ -482,9 +561,31 @@ export function getMultiStreetPlan(context: GameContext): StreetPlan[] {
     let action: BettingAction = "check";
     let sizing: BettingSize | undefined;
     let reasoning = "";
+
+    // Determine current effective category (draw run-out simulation)
+    let effectiveCategory = handAnalysis.category;
+    
+    if (handAnalysis.category === "draw") {
+      if (street === "turn" && drawCompleted === null) {
+        drawCompleted = pseudoRand(1) < DRAW_COMPLETE_FLOP_TURN;
+      } else if (street === "river" && drawCompleted === null) {
+        drawCompleted = pseudoRand(2) < DRAW_COMPLETE_TURN_RIVER;
+      } else if (street === "river" && drawCompleted === false) {
+        // Already missed on turn, tiny chance on river
+        drawCompleted = pseudoRand(3) < DRAW_COMPLETE_TURN_RIVER;
+      }
+
+      if (drawCompleted === true) {
+        effectiveCategory = "monster";
+      } else if (drawCompleted === false && street === "river") {
+        effectiveCategory = "air";
+      } else if (drawCompleted === false && street === "turn") {
+        effectiveCategory = "weak-made"; // weakened draw
+      }
+    }
     
     // Strong hands - keep betting
-    if (handAnalysis.category === "monster" || handAnalysis.category === "overpair") {
+    if (effectiveCategory === "monster" || effectiveCategory === "overpair") {
       if (spr > 2) {
         action = "bet";
         sizing = spr > 4 ? "66%" : "75%";
@@ -495,25 +596,39 @@ export function getMultiStreetPlan(context: GameContext): StreetPlan[] {
         reasoning = `SPR baixo (${spr.toFixed(1)}) - all-in por valor`;
       }
     }
-    // Draws - depends on street
-    else if (handAnalysis.category === "draw") {
+    // Draws with run-out awareness
+    else if (effectiveCategory === "draw" && handAnalysis.category === "draw") {
       if (street === "flop" || street === "turn") {
         action = "bet";
         sizing = "50%";
         reasoning = "Semi-bluff com outs para melhorar";
-      } else {
-        if (handAnalysis.equity < 30) {
-          action = "check";
-          reasoning = "River sem melhorar - give up ou value check";
-        } else {
-          action = "bet";
-          sizing = "66%";
-          reasoning = "Draw completou - value bet";
+        if (street === "turn") {
+          reasoning += " — Se o draw não completar no turn, considere give up";
         }
+      } else {
+        // River - draw scenario handled below via effectiveCategory
+        action = "check";
+        reasoning = "River sem melhorar - give up ou value check";
       }
     }
+    // Draw that missed (weakened or air)
+    else if (handAnalysis.category === "draw" && (effectiveCategory === "weak-made" || effectiveCategory === "air")) {
+      if (effectiveCategory === "weak-made") {
+        action = "check";
+        reasoning = "Draw não completou no turn - controle de pote, aguarde river";
+      } else {
+        action = "check";
+        reasoning = "Draw não completou — give up ou bluff pequeno em boards favoráveis";
+      }
+    }
+    // Draw that completed
+    else if (handAnalysis.category === "draw" && effectiveCategory === "monster") {
+      action = "bet";
+      sizing = "66%";
+      reasoning = "Draw completou - value bet forte";
+    }
     // Marginal hands - pot control
-    else if (handAnalysis.category === "top-pair" || handAnalysis.category === "second-pair") {
+    else if (effectiveCategory === "top-pair" || effectiveCategory === "second-pair") {
       if (street === "flop") {
         action = "bet";
         sizing = boardTexture.wetness === "dry" ? "33%" : "50%";
