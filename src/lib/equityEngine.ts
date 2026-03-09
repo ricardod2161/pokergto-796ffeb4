@@ -219,9 +219,9 @@ export function calculateOuts(
     const heroIn4 = window4.some(r => heroRankSet.has(r));
 
     if (heroIn5) {
-      const haveInW5 = window5.filter(r => (allRanks as number[]).includes(r)).length;
+      const haveInW5 = window5.filter(r => allRanksTyped.includes(r)).length;
       if (haveInW5 === 4) {
-        const gaps = window5.filter(r => !(allRanks as number[]).includes(r));
+        const gaps = window5.filter(r => !allRanksTyped.includes(r));
         if (gaps.length === 1) {
           if (gaps[0] === lo || gaps[0] === lo + 4) {
             if (!isOESD) { isOESD = true; straightOuts = 8; }
@@ -233,7 +233,7 @@ export function calculateOuts(
     }
 
     if (!isOESD && !isGutshot && board.length === 3 && heroIn4) {
-      const haveInW4 = window4.filter(r => (allRanks as number[]).includes(r)).length;
+      const haveInW4 = window4.filter(r => allRanksTyped.includes(r)).length;
       if (haveInW4 === 3) isBackdoorStraight = true;
     }
   }
