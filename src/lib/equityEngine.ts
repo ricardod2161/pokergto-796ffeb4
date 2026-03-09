@@ -1,297 +1,340 @@
-// Real Monte Carlo Equity Engine
-// Evaluates poker hand equity via simulation against a representative villain range
+/**
+ * PokerGTO Equity Engine
+ * Real Monte Carlo simulation with proper 5-card hand evaluator.
+ * Supports hero vs single villain with configurable opponent range.
+ */
 
-type Suit = "h" | "d" | "c" | "s";
-type Rank = 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14; // 11=J, 12=Q, 13=K, 14=A
+// ─────────────────────────────────────────────
+//  Types
+// ─────────────────────────────────────────────
 
-interface EngineCard {
+export type Rank = 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14;
+export type Suit = 0 | 1 | 2 | 3; // clubs=0, diamonds=1, hearts=2, spades=3
+
+export interface EngineCard {
   rank: Rank;
   suit: Suit;
 }
 
 export interface EquityResult {
-  win: number;   // 0-100
-  tie: number;   // 0-100
-  lose: number;  // 0-100
+  winPct: number;   // 0-100
+  tiePct: number;   // 0-100
+  losePct: number;  // 0-100
   iterations: number;
+  handCategory: string;
+  outs: number;
+  outsByType: OutsBreakdown;
 }
 
-// ──────────────────────────────────────────
-// Card encoding: 0–51 (rank*4 + suit index)
-// ──────────────────────────────────────────
-
-const SUITS: Suit[] = ["h", "d", "c", "s"];
-const RANKS: Rank[] = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
-
-function encodeCard(rank: Rank, suit: Suit): number {
-  return (rank - 2) * 4 + SUITS.indexOf(suit);
+export interface OutsBreakdown {
+  flushOuts: number;
+  straightOuts: number;
+  setOuts: number;
+  pairOuts: number;
+  total: number;
+  isFlushDraw: boolean;
+  isOESD: boolean;
+  isGutshot: boolean;
+  isBackdoorFlush: boolean;
+  isBackdoorStraight: boolean;
 }
 
-function decodeCard(n: number): EngineCard {
-  return { rank: (Math.floor(n / 4) + 2) as Rank, suit: SUITS[n % 4] };
+// ─────────────────────────────────────────────
+//  Card Notation Helpers
+// ─────────────────────────────────────────────
+
+const RANK_CHAR_MAP: Record<string, Rank> = {
+  '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9,
+  'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14,
+};
+
+const SUIT_CHAR_MAP: Record<string, Suit> = {
+  c: 0, d: 1, h: 2, s: 3,
+  clubs: 0, diamonds: 1, hearts: 2, spades: 3,
+};
+
+const HAND_NAMES = [
+  'High Card', 'One Pair', 'Two Pair', 'Three of a Kind',
+  'Straight', 'Flush', 'Full House', 'Four of a Kind', 'Straight Flush',
+];
+
+/** Convert UI card format to engine card */
+export function toEngineCard(card: { rank: string; suit: string }): EngineCard {
+  const rankKey = card.rank.toUpperCase() === '10' ? 'T' : card.rank.toUpperCase();
+  const rank = RANK_CHAR_MAP[rankKey] ?? RANK_CHAR_MAP[card.rank];
+  const suit = SUIT_CHAR_MAP[card.suit.toLowerCase()];
+  if (!rank || suit === undefined) throw new Error(`Invalid card: ${card.rank}${card.suit}`);
+  return { rank, suit };
 }
 
-const FULL_DECK: number[] = Array.from({ length: 52 }, (_, i) => i);
-
-// ──────────────────────────────────────────
-// Top ~30% preflop range filter
-// Hand represented as two sorted ranks (high, low) + suited flag
-// ──────────────────────────────────────────
-
-function isInVillainRange(c1: EngineCard, c2: EngineCard): boolean {
-  const hi = Math.max(c1.rank, c2.rank);
-  const lo = Math.min(c1.rank, c2.rank);
-  const suited = c1.suit === c2.suit;
-
-  // Pocket pairs 22+
-  if (hi === lo) return hi >= 2;
-
-  // Broadway combinations
-  if (hi >= 10 && lo >= 10) return true;
-
-  // Suited aces
-  if (hi === 14 && suited) return true;
-
-  // Suited kings
-  if (hi === 13 && lo >= 7 && suited) return true;
-
-  // Suited connectors & one-gappers
-  if (suited && hi - lo <= 2 && lo >= 5) return true;
-
-  // Offsuit aces with decent kicker
-  if (hi === 14 && lo >= 9) return true;
-
-  // KQ, KJ, QJ offsuit
-  if (hi === 13 && lo >= 11) return true;
-  if (hi === 12 && lo === 11) return true;
-
-  // Suited queens
-  if (hi === 12 && lo >= 8 && suited) return true;
-
-  return false;
+/** Convert engine card to integer index (0-51) */
+function cardToIndex(c: EngineCard): number {
+  return (c.rank - 2) * 4 + c.suit;
 }
 
-// ──────────────────────────────────────────
-// Fisher-Yates shuffle (in-place, partial)
-// ──────────────────────────────────────────
+/** Build a 52-card deck, excluding dead cards */
+function buildDeck(dead: EngineCard[]): EngineCard[] {
+  const deadSet = new Set(dead.map(cardToIndex));
+  const deck: EngineCard[] = [];
+  for (let r = 2; r <= 14; r++) {
+    for (let s = 0; s <= 3; s++) {
+      const c = { rank: r as Rank, suit: s as Suit };
+      if (!deadSet.has(cardToIndex(c))) deck.push(c);
+    }
+  }
+  return deck;
+}
 
-function shufflePartial(deck: number[], count: number): void {
-  for (let i = 0; i < count; i++) {
-    const j = i + Math.floor(Math.random() * (deck.length - i));
+/** Fisher-Yates shuffle in-place */
+function shuffle(deck: EngineCard[]): void {
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = (Math.random() * (i + 1)) | 0;
     const tmp = deck[i];
     deck[i] = deck[j];
     deck[j] = tmp;
   }
 }
 
-// ──────────────────────────────────────────
-// 5-card hand evaluator
-// Returns a numeric score: higher = better hand
-// ──────────────────────────────────────────
+// ─────────────────────────────────────────────
+//  Hand Evaluator
+//  Score = handRank * 15^5 + c1*15^4 + c2*15^3 + c3*15^2 + c4*15 + c5
+//  Higher score = better hand. Works for exactly 5-card hands.
+// ─────────────────────────────────────────────
 
-function evaluateFiveCards(cards: EngineCard[]): number {
-  // Sort descending by rank
-  const sorted = [...cards].sort((a, b) => b.rank - a.rank);
+const P = [1, 15, 225, 3375, 50625, 759375]; // 15^0 ... 15^5
 
-  const ranks = sorted.map(c => c.rank);
-  const suits = sorted.map(c => c.suit);
+function encodeKickers(ranks: number[]): number {
+  let v = 0;
+  for (let i = 0; i < ranks.length; i++) {
+    v += ranks[i] * P[ranks.length - 1 - i];
+  }
+  return v;
+}
+
+/** Evaluate a 5-card hand, return numeric score (higher=better) */
+function eval5(cards: EngineCard[]): number {
+  const ranks = cards.map(c => c.rank).sort((a, b) => b - a);
+  const suits = cards.map(c => c.suit);
+
+  const freq: Record<number, number> = {};
+  for (const r of ranks) freq[r] = (freq[r] ?? 0) + 1;
+  const freqValues = Object.values(freq).sort((a, b) => b - a);
+  const freqKeys = Object.keys(freq)
+    .map(Number)
+    .sort((a, b) => (freq[b] !== freq[a] ? freq[b] - freq[a] : b - a));
 
   const isFlush = suits.every(s => s === suits[0]);
 
-  // Rank counts
-  const counts: Record<number, number> = {};
-  for (const r of ranks) counts[r] = (counts[r] || 0) + 1;
-  const countVals = Object.values(counts).sort((a, b) => b - a);
-  const countKeys = Object.entries(counts)
-    .sort((a, b) => b[1] - a[1] || parseInt(b[0]) - parseInt(a[0]))
-    .map(e => parseInt(e[0]));
-
-  // Straight check (including wheel A-2-3-4-5)
   const uniqueRanks = [...new Set(ranks)].sort((a, b) => b - a);
   let isStraight = false;
   let straightHigh = 0;
 
-  if (uniqueRanks.length >= 5) {
-    for (let i = 0; i <= uniqueRanks.length - 5; i++) {
-      if (uniqueRanks[i] - uniqueRanks[i + 4] === 4) {
-        isStraight = true;
-        straightHigh = uniqueRanks[i];
-        break;
-      }
-    }
-    // Wheel: A-2-3-4-5
-    if (!isStraight && uniqueRanks.includes(14) && uniqueRanks.includes(5) &&
-        uniqueRanks.includes(4) && uniqueRanks.includes(3) && uniqueRanks.includes(2)) {
-      isStraight = true;
-      straightHigh = 5;
-    }
+  if (uniqueRanks.length === 5 && uniqueRanks[0] - uniqueRanks[4] === 4) {
+    isStraight = true;
+    straightHigh = uniqueRanks[0];
   }
 
-  // Hand rankings (8=straight flush, 7=quads, 6=full house, 5=flush,
-  //                4=straight, 3=trips, 2=two pair, 1=pair, 0=high card)
+  // Wheel: A-2-3-4-5
+  if (!isStraight && uniqueRanks[0] === 14 &&
+    uniqueRanks[1] === 5 && uniqueRanks[2] === 4 &&
+    uniqueRanks[3] === 3 && uniqueRanks[4] === 2) {
+    isStraight = true;
+    straightHigh = 5;
+  }
 
-  if (isFlush && isStraight) {
-    return 8_000_000 + straightHigh;
+  if (isStraight && isFlush) return 8 * P[5] + straightHigh;
+  if (freqValues[0] === 4) return 7 * P[5] + freqKeys[0] * P[1] + freqKeys[1];
+  if (freqValues[0] === 3 && freqValues[1] === 2) return 6 * P[5] + freqKeys[0] * P[1] + freqKeys[1];
+  if (isFlush) return 5 * P[5] + encodeKickers(ranks);
+  if (isStraight) return 4 * P[5] + straightHigh;
+  if (freqValues[0] === 3) return 3 * P[5] + freqKeys[0] * P[2] + encodeKickers([freqKeys[1], freqKeys[2]]);
+  if (freqValues[0] === 2 && freqValues[1] === 2) {
+    const pairs = [freqKeys[0], freqKeys[1]].sort((a, b) => b - a);
+    return 2 * P[5] + pairs[0] * P[2] + pairs[1] * P[1] + freqKeys[2];
   }
-  if (countVals[0] === 4) {
-    return 7_000_000 + countKeys[0] * 100 + countKeys[1];
-  }
-  if (countVals[0] === 3 && countVals[1] === 2) {
-    return 6_000_000 + countKeys[0] * 100 + countKeys[1];
-  }
-  if (isFlush) {
-    return 5_000_000 + ranks.reduce((acc, r, i) => acc + r * Math.pow(15, 4 - i), 0);
-  }
-  if (isStraight) {
-    return 4_000_000 + straightHigh;
-  }
-  if (countVals[0] === 3) {
-    const kickers = countKeys.slice(1, 3);
-    return 3_000_000 + countKeys[0] * 10000 + kickers[0] * 100 + kickers[1];
-  }
-  if (countVals[0] === 2 && countVals[1] === 2) {
-    const pair1 = Math.max(countKeys[0], countKeys[1]);
-    const pair2 = Math.min(countKeys[0], countKeys[1]);
-    const kicker = countKeys[2];
-    return 2_000_000 + pair1 * 10000 + pair2 * 100 + kicker;
-  }
-  if (countVals[0] === 2) {
-    const kickers = countKeys.slice(1, 4);
-    return 1_000_000 + countKeys[0] * 100000 + kickers[0] * 1000 + kickers[1] * 10 + kickers[2];
-  }
-  // High card
-  return ranks.reduce((acc, r, i) => acc + r * Math.pow(15, 4 - i), 0);
+  if (freqValues[0] === 2) return 1 * P[5] + freqKeys[0] * P[3] + encodeKickers([freqKeys[1], freqKeys[2], freqKeys[3]]);
+  return encodeKickers(ranks);
 }
 
-// ──────────────────────────────────────────
-// Best 5-card hand from 6 or 7 cards
-// ──────────────────────────────────────────
-
-const COMBOS_7C5: number[][] = [];
-(function buildCombos() {
-  for (let a = 0; a < 7; a++)
-    for (let b = a + 1; b < 7; b++)
-      for (let c = b + 1; c < 7; c++)
-        for (let d = c + 1; d < 7; d++)
-          for (let e = d + 1; e < 7; e++)
-            COMBOS_7C5.push([a, b, c, d, e]);
-})();
-
-function bestHandScore(sevenCards: EngineCard[]): number {
+/** Best 5-card hand out of N cards (N >= 5) */
+function evalBest(cards: EngineCard[]): number {
+  if (cards.length === 5) return eval5(cards);
   let best = -1;
-  for (const combo of COMBOS_7C5) {
-    const five = combo.map(i => sevenCards[i]);
-    const score = evaluateFiveCards(five);
-    if (score > best) best = score;
-  }
+  const n = cards.length;
+  for (let a = 0; a < n - 4; a++)
+    for (let b = a + 1; b < n - 3; b++)
+      for (let c = b + 1; c < n - 2; c++)
+        for (let d = c + 1; d < n - 1; d++)
+          for (let e = d + 1; e < n; e++) {
+            const score = eval5([cards[a], cards[b], cards[c], cards[d], cards[e]]);
+            if (score > best) best = score;
+          }
   return best;
 }
 
-// ──────────────────────────────────────────
-// Convert public card format to EngineCard
-// ──────────────────────────────────────────
-
-const RANK_NAME_TO_INT: Record<string, Rank> = {
-  "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9,
-  "T": 10, "J": 11, "Q": 12, "K": 13, "A": 14
-};
-
-const SUIT_NAME_TO_SHORT: Record<string, Suit> = {
-  hearts: "h", diamonds: "d", clubs: "c", spades: "s"
-};
-
-interface PublicCard {
-  rank: string;
-  suit: string;
+/** Get hand category name from score */
+function getHandName(score: number): string {
+  const category = Math.floor(score / P[5]);
+  return HAND_NAMES[Math.min(category, 8)];
 }
 
-function toEngineCard(c: PublicCard): EngineCard {
-  return {
-    rank: RANK_NAME_TO_INT[c.rank] ?? 2,
-    suit: SUIT_NAME_TO_SHORT[c.suit] ?? "h",
-  };
-}
+// ─────────────────────────────────────────────
+//  Outs Calculator
+// ─────────────────────────────────────────────
 
-// ──────────────────────────────────────────
-// Main Monte Carlo simulation
-// ──────────────────────────────────────────
+export function calculateOuts(
+  heroCards: EngineCard[],
+  board: EngineCard[]
+): OutsBreakdown {
+  const all = [...heroCards, ...board];
+  const heroRanks = heroCards.map(c => c.rank);
+  const heroSuits = heroCards.map(c => c.suit);
 
-export async function runMonteCarloEquity(
-  heroCards: PublicCard[],
-  boardCards: PublicCard[],
-  iterations = 5000
-): Promise<EquityResult> {
-  const heroEngineCards = heroCards.map(toEngineCard);
-  const boardEngineCards = boardCards.map(toEngineCard);
+  // ── Flush Draw ──────────────────────────────
+  const suitCount: Record<number, number> = {};
+  for (const c of all) suitCount[c.suit] = (suitCount[c.suit] ?? 0) + 1;
+  const heroSuitCounts = heroSuits.map(s => suitCount[s] ?? 0);
+  const maxSuitWithHero = Math.max(...heroSuitCounts);
+  const isFlushDraw = maxSuitWithHero === 4;
+  const isBackdoorFlush = maxSuitWithHero === 3 && board.length === 3;
+  const flushOuts = isFlushDraw ? 9 : 0;
 
-  // Encode known cards to exclude from deck
-  const knownEncoded = new Set<number>([
-    ...heroEngineCards.map(c => encodeCard(c.rank, c.suit)),
-    ...boardEngineCards.map(c => encodeCard(c.rank, c.suit)),
-  ]);
+  // ── Straight Draw ────────────────────────────
+  const allRanks = [...new Set(all.map(c => c.rank))].sort((a, b) => a - b);
+  if (allRanks.includes(14)) allRanks.unshift(1);
 
-  const availableDeck = FULL_DECK.filter(n => !knownEncoded.has(n));
-  const boardNeeded = 5 - boardEngineCards.length; // cards to complete board
-  const CARDS_NEEDED = 2 + boardNeeded; // 2 villain + missing board
+  let isOESD = false;
+  let isGutshot = false;
+  let isBackdoorStraight = false;
+  let straightOuts = 0;
 
-  let wins = 0, ties = 0, losses = 0;
-  let validIterations = 0;
+  const heroRankSet = new Set<number>(heroRanks);
+  if (heroRanks.includes(14)) heroRankSet.add(1);
 
-  // Chunked async to avoid blocking UI
-  const CHUNK_SIZE = 500;
-  const chunks = Math.ceil(iterations / CHUNK_SIZE);
+  for (let lo = 1; lo <= 10; lo++) {
+    const window5 = [lo, lo + 1, lo + 2, lo + 3, lo + 4];
+    const window4 = [lo, lo + 1, lo + 2, lo + 3];
 
-  const runChunk = (chunkIterations: number): void => {
-    const workDeck = [...availableDeck];
-    for (let iter = 0; iter < chunkIterations; iter++) {
-      shufflePartial(workDeck, CARDS_NEEDED);
+    const heroIn5 = window5.some(r => heroRankSet.has(r));
+    const heroIn4 = window4.some(r => heroRankSet.has(r));
 
-      const villainCards: EngineCard[] = [
-        decodeCard(workDeck[0]),
-        decodeCard(workDeck[1]),
-      ];
-
-      // Filter villain to top 30% range
-      if (!isInVillainRange(villainCards[0], villainCards[1])) continue;
-      validIterations++;
-
-      const runoutCards: EngineCard[] = [];
-      for (let i = 0; i < boardNeeded; i++) {
-        runoutCards.push(decodeCard(workDeck[2 + i]));
-      }
-
-      const fullBoard = [...boardEngineCards, ...runoutCards];
-
-      const heroScore = bestHandScore([...heroEngineCards, ...fullBoard]);
-      const villainScore = bestHandScore([...villainCards, ...fullBoard]);
-
-      if (heroScore > villainScore) wins++;
-      else if (heroScore === villainScore) ties++;
-      else losses++;
-    }
-  };
-
-  for (let c = 0; c < chunks; c++) {
-    const chunkIterations = c < chunks - 1 ? CHUNK_SIZE : iterations - c * CHUNK_SIZE;
-    runChunk(chunkIterations);
-
-    // Yield to browser between chunks
-    if (c < chunks - 1) {
-      await new Promise<void>(resolve => {
-        if (typeof requestIdleCallback !== "undefined") {
-          requestIdleCallback(() => resolve(), { timeout: 50 });
-        } else {
-          setTimeout(resolve, 0);
+    if (heroIn5) {
+      const haveInW5 = window5.filter(r => allRanks.includes(r)).length;
+      if (haveInW5 === 4) {
+        const gaps = window5.filter(r => !allRanks.includes(r));
+        if (gaps.length === 1) {
+          if (gaps[0] === lo || gaps[0] === lo + 4) {
+            if (!isOESD) { isOESD = true; straightOuts = 8; }
+          } else {
+            if (!isOESD && !isGutshot) { isGutshot = true; straightOuts = 4; }
+          }
         }
-      });
+      }
+    }
+
+    if (!isOESD && !isGutshot && board.length === 3 && heroIn4) {
+      const haveInW4 = window4.filter(r => allRanks.includes(r)).length;
+      if (haveInW4 === 3) isBackdoorStraight = true;
     }
   }
 
-  const total = Math.max(validIterations, 1);
+  // ── Set / Pair outs ──────────────────────────
+  let setOuts = 0;
+  let pairOuts = 0;
+  const boardRanks = board.map(c => c.rank);
+  const boardRankFreq: Record<number, number> = {};
+  for (const r of boardRanks) boardRankFreq[r] = (boardRankFreq[r] ?? 0) + 1;
+
+  for (const r of heroRanks) {
+    const onBoard = boardRankFreq[r] ?? 0;
+    if (onBoard === 2) setOuts += 1;
+    else if (onBoard === 1) setOuts += 2;
+    else pairOuts += 3;
+  }
+
+  if (heroRanks[0] === heroRanks[1]) {
+    setOuts = 2;
+    pairOuts = 0;
+  }
+
+  const total = flushOuts + straightOuts;
+
   return {
-    win: Math.round((wins / total) * 1000) / 10,
-    tie: Math.round((ties / total) * 1000) / 10,
-    lose: Math.round((losses / total) * 1000) / 10,
-    iterations: validIterations,
+    flushOuts,
+    straightOuts,
+    setOuts,
+    pairOuts,
+    total,
+    isFlushDraw,
+    isOESD,
+    isGutshot,
+    isBackdoorFlush,
+    isBackdoorStraight,
   };
+}
+
+// ─────────────────────────────────────────────
+//  Monte Carlo Runner
+// ─────────────────────────────────────────────
+
+export function runEquity(
+  heroCards: EngineCard[],
+  boardCards: EngineCard[],
+  iterations = 7500
+): EquityResult {
+  const dead = [...heroCards, ...boardCards];
+  const baseDeck = buildDeck(dead);
+  const boardNeeded = 5 - boardCards.length;
+
+  let wins = 0, ties = 0, losses = 0;
+  const workDeck = [...baseDeck];
+
+  for (let i = 0; i < iterations; i++) {
+    shuffle(workDeck);
+
+    const villain: EngineCard[] = [workDeck[0], workDeck[1]];
+    const extraBoard: EngineCard[] = workDeck.slice(2, 2 + boardNeeded);
+    const fullBoard = [...boardCards, ...extraBoard];
+
+    const heroScore = evalBest([...heroCards, ...fullBoard]);
+    const villainScore = evalBest([...villain, ...fullBoard]);
+
+    if (heroScore > villainScore) wins++;
+    else if (heroScore === villainScore) ties++;
+    else losses++;
+  }
+
+  const heroScore5 = heroCards.length >= 2 && boardCards.length >= 3
+    ? evalBest([...heroCards, ...boardCards])
+    : -1;
+
+  const handCategory = heroScore5 >= 0 ? getHandName(heroScore5) : 'Preflop';
+
+  const outs = boardCards.length < 5
+    ? calculateOuts(heroCards, boardCards)
+    : {
+        flushOuts: 0, straightOuts: 0, setOuts: 0, pairOuts: 0, total: 0,
+        isFlushDraw: false, isOESD: false, isGutshot: false,
+        isBackdoorFlush: false, isBackdoorStraight: false,
+      };
+
+  return {
+    winPct: Math.round((wins / iterations) * 1000) / 10,
+    tiePct: Math.round((ties / iterations) * 1000) / 10,
+    losePct: Math.round((losses / iterations) * 1000) / 10,
+    iterations,
+    handCategory,
+    outs: outs.total,
+    outsByType: outs,
+  };
+}
+
+// ─────────────────────────────────────────────
+//  Rule of 2 & 4 approximation
+// ─────────────────────────────────────────────
+
+export function rule2and4(outs: number, street: 'flop' | 'turn' | 'river'): number {
+  if (street === 'flop') return Math.min(outs * 4, 100);
+  if (street === 'turn') return Math.min(outs * 2, 100);
+  return 0;
 }
