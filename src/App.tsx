@@ -22,6 +22,7 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 import Install from "./pages/Install";
+import Solver from "./pages/Solver";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1 } },
@@ -53,6 +54,7 @@ const App = () => (
               <Route path="/hand-analysis/import" element={<HandAnalysis />} />
               <Route path="/betting-assistant" element={<BettingAssistant />} />
               <Route path="/training" element={<Training />} />
+              <Route path="/solver" element={<Solver />} />
               <Route path="/pricing" element={<Pricing />} />
             </Route>
             <Route path="/admin" element={

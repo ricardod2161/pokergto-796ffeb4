@@ -17,7 +17,8 @@ import {
   FileText,
   Settings,
   AlertTriangle,
-  Zap
+  Zap,
+  Cpu
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -38,6 +39,7 @@ const navigation = [
   { name: "Análise de Mãos", href: "/hand-analysis/import", icon: PlayCircle },
   { name: "Estatísticas", href: "/statistics", icon: BarChart3 },
   { name: "Assistente de Bet", href: "/betting-assistant", icon: Crosshair },
+  { name: "Solver GTO", href: "/solver", icon: Cpu },
   { name: "Planos", href: "/pricing", icon: CreditCard },
 ];
 
