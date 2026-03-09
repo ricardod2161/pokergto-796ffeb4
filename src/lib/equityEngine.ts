@@ -200,8 +200,8 @@ export function calculateOuts(
   const flushOuts = isFlushDraw ? 9 : 0;
 
   // ── Straight Draw ────────────────────────────
-  const allRanks = [...new Set(all.map(c => c.rank))].sort((a, b) => a - b);
-  if (allRanks.includes(14)) allRanks.unshift(1);
+  const allRanksTyped: number[] = [...new Set(all.map(c => c.rank as number))].sort((a, b) => a - b);
+  if (allRanksTyped.includes(14)) allRanksTyped.unshift(1);
 
   let isOESD = false;
   let isGutshot = false;

@@ -101,20 +101,22 @@ export default function EquityCalculator() {
     return [...heroCards, ...boardCards].some(c => c.rank === rank && c.suit === suit);
   };
 
-  const handleCalculate = async () => {
+  const handleCalculate = () => {
     if (heroCards.length < 2) return;
     setIsCalculating(true);
     clearAnalysis();
     
     try {
-      const result = await runMonteCarloEquity(heroCards, boardCards, 5000);
-      setResults({ win: result.win, tie: result.tie, lose: result.lose });
+      const engineHero = heroCards.map(toEngineCard);
+      const engineBoard = boardCards.map(toEngineCard);
+      const result = runEquity(engineHero, engineBoard, 7500);
+      setResults({ win: result.winPct, tie: result.tiePct, lose: result.losePct });
       
       const newEntry: CalculationHistory = {
         id: Date.now().toString(),
         heroCards: [...heroCards],
         boardCards: [...boardCards],
-        equity: result.win,
+        equity: result.winPct,
         position,
         timestamp: new Date(),
       };
