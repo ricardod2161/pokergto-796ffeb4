@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/collapsible";
 import { useEquityAnalysis } from "@/hooks/useEquityAnalysis";
 import { UsageBadge } from "@/components/usage/UsageBadge";
+import { runMonteCarloEquity } from "@/lib/equityEngine";
 
 type Suit = "hearts" | "diamonds" | "clubs" | "spades";
 type Rank = "A" | "K" | "Q" | "J" | "T" | "9" | "8" | "7" | "6" | "5" | "4" | "3" | "2";
@@ -100,28 +101,29 @@ export default function EquityCalculator() {
     return [...heroCards, ...boardCards].some(c => c.rank === rank && c.suit === suit);
   };
 
-  const handleCalculate = () => {
+  const handleCalculate = async () => {
+    if (heroCards.length < 2) return;
     setIsCalculating(true);
     clearAnalysis();
     
-    setTimeout(() => {
-      const win = Math.round((Math.random() * 40 + 30) * 10) / 10;
-      const tie = Math.round((Math.random() * 5) * 10) / 10;
-      const lose = Math.round((100 - win - tie) * 10) / 10;
-      
-      setResults({ win, tie, lose });
-      setIsCalculating(false);
+    try {
+      const result = await runMonteCarloEquity(heroCards, boardCards, 5000);
+      setResults({ win: result.win, tie: result.tie, lose: result.lose });
       
       const newEntry: CalculationHistory = {
         id: Date.now().toString(),
         heroCards: [...heroCards],
         boardCards: [...boardCards],
-        equity: win,
+        equity: result.win,
         position,
         timestamp: new Date(),
       };
       setHistory(prev => [newEntry, ...prev].slice(0, 5));
-    }, 800);
+    } catch (err) {
+      console.error("Monte Carlo error:", err);
+    } finally {
+      setIsCalculating(false);
+    }
   };
 
   const handleReset = () => {

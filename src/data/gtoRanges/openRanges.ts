@@ -7,7 +7,7 @@ import { createEmptyRange, applyAction } from "./utils";
 // Position multipliers for EV calculation
 const POS_MULT = {
   UTG: 0.6,
-  UTG1: 0.7,
+  UTG1: 0.65, // Slightly more liberal than UTG
   MP: 0.8,
   HJ: 0.9,
   CO: 1.1,
@@ -40,6 +40,51 @@ function generateUTGOpen(): Record<string, HandData> {
     ["55", "A9s", "KJo", "T9s"],
     { raise: 0.50, call: 0, fold: 0.50 },
     POS_MULT.UTG
+  );
+  
+  return range;
+}
+
+// UTG+1 is one seat to the left of UTG in 8-handed games.
+// Slightly wider than UTG: 66 is pure raise, A9s raises more, KJo added, T9s more frequent.
+function generateUTG1Open(): Record<string, HandData> {
+  const range = createEmptyRange();
+  
+  // Pure raises (100%) — same as UTG core + 66 upgraded to pure
+  applyAction(range, 
+    ["AA", "KK", "QQ", "JJ", "TT", "99", "88", "77", "66",
+     "AKs", "AQs", "AJs", "ATs", "KQs", "KJs", "QJs",
+     "AKo", "AQo"],
+    { raise: 1.0, call: 0, fold: 0 },
+    POS_MULT.UTG1
+  );
+  
+  // High frequency raises
+  applyAction(range,
+    ["55", "AJo", "KTs", "QTs", "JTs"],
+    { raise: 0.85, call: 0, fold: 0.15 },
+    POS_MULT.UTG1
+  );
+  
+  // A9s upgraded from 50% to 70%
+  applyAction(range,
+    ["A9s"],
+    { raise: 0.70, call: 0, fold: 0.30 },
+    POS_MULT.UTG1
+  );
+  
+  // KJo added (new vs UTG)
+  applyAction(range,
+    ["KJo"],
+    { raise: 0.40, call: 0, fold: 0.60 },
+    POS_MULT.UTG1
+  );
+  
+  // T9s upgraded from 50% to 75%
+  applyAction(range,
+    ["T9s"],
+    { raise: 0.75, call: 0, fold: 0.25 },
+    POS_MULT.UTG1
   );
   
   return range;
@@ -209,7 +254,7 @@ function generateSBOpen(): Record<string, HandData> {
 // Export all open ranges
 export const openRanges: Record<string, Record<string, HandData>> = {
   UTG: generateUTGOpen(),
-  UTG1: generateUTGOpen(), // Similar to UTG
+  UTG1: generateUTG1Open(), // Distinct 8-handed UTG+1 range
   MP: generateMPOpen(),
   HJ: generateHJOpen(),
   CO: generateCOOpen(),

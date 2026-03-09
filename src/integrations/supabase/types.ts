@@ -68,6 +68,42 @@ export type Database = {
         }
         Relationships: []
       }
+      hand_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          pfr: boolean
+          position: string
+          result_bb: number
+          session_date: string
+          three_bet: boolean
+          user_id: string
+          vpip: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pfr?: boolean
+          position: string
+          result_bb?: number
+          session_date?: string
+          three_bet?: boolean
+          user_id: string
+          vpip?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pfr?: boolean
+          position?: string
+          result_bb?: number
+          session_date?: string
+          three_bet?: boolean
+          user_id?: string
+          vpip?: boolean
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
