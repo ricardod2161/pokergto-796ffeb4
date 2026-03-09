@@ -52,6 +52,8 @@ export default function EVCalculator() {
   const [callCost, setCallCost] = useState("");
   const [equity, setEquity] = useState("50");
   const [impliedOdds, setImpliedOdds] = useState("");
+  const [outs, setOuts] = useState("");
+  const [outsStreet, setOutsStreet] = useState<"flop" | "turn" | "river">("turn");
   const [result, setResult] = useState<{
     ev: number;
     recommendation: "call" | "fold" | "marginal";
@@ -64,6 +66,14 @@ export default function EVCalculator() {
   const [showHistory, setShowHistory] = useState(false);
   
   const { analysis, isLoading: isAILoading, error: aiError, analyzeEV, clearAnalysis, usage, planName, canUseAnalysis } = useEVAnalysis();
+
+  // Rule of 2&4 equity estimate from outs
+  const outsInt = parseInt(outs) || 0;
+  const outsEquityEstimate = outsInt > 0
+    ? outsStreet === "flop"
+      ? Math.round(outsInt * 4 * 10) / 10   // ~4% per out on flop (2 cards)
+      : Math.round((outsInt / 46) * 100 * 10) / 10  // 1 card remaining
+    : null;
 
   // Clear AI analysis when inputs change significantly
   useEffect(() => {
