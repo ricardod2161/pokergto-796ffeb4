@@ -538,6 +538,85 @@ function calculatePushEV(hand: HandNotation, stackBB: number, position: string):
 }
 
 // ─────────────────────────────────────────────
+//  7b. CALL RANGE (facing an all-in push)
+// ─────────────────────────────────────────────
+
+/**
+ * Maximum stack (in BB) at which hero should CALL a push from a given position.
+ * Based on standard Nash calling charts — hero is always in the big blind unless noted.
+ */
+const CALL_RANGES_BB: Record<string, Record<string, number>> = {
+  // Calling vs BTN push
+  vsBTN: {
+    AA:20, KK:20, QQ:20, JJ:18, TT:15, "99":13, "88":11, "77":9, "66":8, "55":7,
+    AKs:20, AQs:20, AJs:18, ATs:15, A9s:12, A8s:10, A7s:9, A6s:8, A5s:11, A4s:9, A3s:8, A2s:7,
+    AKo:20, AQo:18, AJo:14, ATo:12, A9o:10, A8o:8, A7o:7,
+    KQs:18, KJs:15, KTs:12, K9s:9, K8s:7,
+    KQo:15, KJo:11, KTo:9, K9o:7,
+    QJs:13, QTs:10, Q9s:8, JTs:12, J9s:8, T9s:9, "98s":7,
+  },
+  // Calling vs CO push
+  vsCO: {
+    AA:20, KK:20, QQ:20, JJ:17, TT:14, "99":11, "88":9, "77":7, "66":6,
+    AKs:20, AQs:20, AJs:16, ATs:13, A9s:10, A8s:8, A7s:7, A5s:9, A4s:7,
+    AKo:20, AQo:16, AJo:12, ATo:10, A9o:8,
+    KQs:16, KJs:12, KTs:9, K9s:7,
+    KQo:13, KJo:9, QJs:11, JTs:9,
+  },
+  // Calling vs UTG push (tighter)
+  vsUTG: {
+    AA:20, KK:20, QQ:20, JJ:15, TT:12, "99":9, "88":7,
+    AKs:20, AQs:18, AJs:14, ATs:11, A9s:8,
+    AKo:18, AQo:14, AJo:10,
+    KQs:13, KJs:9,
+    KQo:11, QJs:8, JTs:7,
+  },
+  // Calling vs SB push
+  vsSB: {
+    AA:20, KK:20, QQ:20, JJ:20, TT:17, "99":14, "88":12, "77":10, "66":9, "55":8, "44":7,
+    AKs:20, AQs:20, AJs:20, ATs:17, A9s:14, A8s:12, A7s:10, A6s:9, A5s:13, A4s:10, A3s:9, A2s:8,
+    AKo:20, AQo:20, AJo:16, ATo:14, A9o:12, A8o:10, A7o:9, A6o:8,
+    KQs:20, KJs:17, KTs:14, K9s:11, K8s:9, K7s:8,
+    KQo:17, KJo:14, KTo:11, K9o:9,
+    QJs:16, QTs:13, Q9s:10, JTs:14, J9s:10, T9s:11, "98s":9, "87s":7,
+  },
+};
+
+export type CallDecision = {
+  shouldCall: boolean;
+  frequency: number; // 0-1
+  maxBB: number;     // max stack to call profitably
+  reasoning: string;
+};
+
+export function getCallDecision(
+  hand: HandNotation,
+  stackBB: number,
+  villainPosition: string
+): CallDecision {
+  const key = `vs${villainPosition}` as keyof typeof CALL_RANGES_BB;
+  const table = CALL_RANGES_BB[key] ?? CALL_RANGES_BB["vsCO"];
+  const maxBB = table[hand] ?? 0;
+
+  if (maxBB === 0) {
+    return { shouldCall: false, frequency: 0, maxBB: 0, reasoning: `${hand} fora do range de call vs ${villainPosition}.` };
+  }
+
+  if (stackBB <= maxBB) {
+    // Deep in range → pure call; near edge → mixed
+    const freq = stackBB <= maxBB * 0.7 ? 1.0 : 1.0 - (stackBB - maxBB * 0.7) / (maxBB * 0.3);
+    return {
+      shouldCall: true,
+      frequency: Math.max(0, Math.min(1, freq)),
+      maxBB,
+      reasoning: `${hand} — call puro até ${maxBB}bb vs ${villainPosition}.`,
+    };
+  }
+
+  return { shouldCall: false, frequency: 0, maxBB, reasoning: `${hand} — stack (${stackBB}bb) > limite (${maxBB}bb). Fold.` };
+}
+
+// ─────────────────────────────────────────────
 //  8. SPR COMMITMENT THRESHOLDS
 // ─────────────────────────────────────────────
 
