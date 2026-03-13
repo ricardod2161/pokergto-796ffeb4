@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Cpu, ChevronDown, Loader2, Trophy, TrendingUp, Grid3X3, Plus, Trash2, Info } from "lucide-react";
+import { Cpu, Loader2, Trophy, TrendingUp, Grid3X3, Plus, Trash2, Info, PhoneCall } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,10 +16,11 @@ import {
   calculateRangeEquity,
   calculateICM,
   getPushFoldDecision,
+  getCallDecision,
   VILLAIN_RANGES,
   ALL_RANKS,
 } from "@/lib/solverEngine";
-import type { RangeEquityResult, ICMResult, PushFoldDecision } from "@/lib/solverEngine";
+import type { RangeEquityResult, ICMResult, PushFoldDecision, CallDecision } from "@/lib/solverEngine";
 import type { EngineCard } from "@/lib/equityEngine";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
