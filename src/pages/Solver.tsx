@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Cpu, ChevronDown, Loader2, Trophy, TrendingUp, Grid3X3, Plus, Trash2, Info } from "lucide-react";
+import { Cpu, Loader2, Trophy, TrendingUp, Grid3X3, Plus, Trash2, Info, PhoneCall } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,10 +16,11 @@ import {
   calculateRangeEquity,
   calculateICM,
   getPushFoldDecision,
+  getCallDecision,
   VILLAIN_RANGES,
   ALL_RANKS,
 } from "@/lib/solverEngine";
-import type { RangeEquityResult, ICMResult, PushFoldDecision } from "@/lib/solverEngine";
+import type { RangeEquityResult, ICMResult, PushFoldDecision, CallDecision } from "@/lib/solverEngine";
 import type { EngineCard } from "@/lib/equityEngine";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -483,65 +484,146 @@ function ICMCalculator() {
 //  TAB 3 — Push/Fold Chart
 // ═══════════════════════════════════════════════════════════════════════════════
 const POSITIONS = ["UTG", "CO", "BTN", "SB"] as const;
+const CALL_VS_POSITIONS = ["vsUTG", "vsCO", "vsBTN", "vsSB"] as const;
 type Position = typeof POSITIONS[number];
+type CallVsPosition = typeof CALL_VS_POSITIONS[number];
+
+type SelectedCell =
+  | { mode: "push"; hand: string; decision: PushFoldDecision }
+  | { mode: "call"; hand: string; decision: CallDecision };
 
 function PushFoldChart() {
   const [stack, setStack] = useState(10);
   const [position, setPosition] = useState<Position>("BTN");
-  const [selected, setSelected] = useState<{ hand: string; decision: PushFoldDecision } | null>(null);
+  const [callVsPos, setCallVsPos] = useState<CallVsPosition>("vsBTN");
+  const [selected, setSelected] = useState<SelectedCell | null>(null);
+  const [activeTab, setActiveTab] = useState<"push" | "call">("push");
 
-  // Build 13×13 grid decisions
-  const grid = useMemo(() => {
-    const cells: Array<{ hand: string; decision: PushFoldDecision; isPair: boolean; isSuited: boolean }> = [];
-    for (let r = 0; r < 13; r++) {
-      for (let c = 0; c < 13; c++) {
-        const rank1 = ALL_RANKS[r];
-        const rank2 = ALL_RANKS[c];
-        let hand: string;
-        if (r === c) hand = `${rank1}${rank2}`; // pair
-        else if (r < c) hand = `${rank1}${rank2}s`; // suited (upper triangle)
-        else hand = `${rank2}${rank1}o`; // offsuit (lower triangle)
-        const decision = getPushFoldDecision(hand, stack, position);
-        cells.push({ hand, decision, isPair: r === c, isSuited: r < c });
-      }
-    }
-    return cells;
+  // ── Push grid ──────────────────────────────────────────────────────────────
+  const pushGrid = useMemo(() => {
+    return Array.from({ length: 169 }, (_, idx) => {
+      const r = Math.floor(idx / 13);
+      const c = idx % 13;
+      const rank1 = ALL_RANKS[r];
+      const rank2 = ALL_RANKS[c];
+      const hand = r === c ? `${rank1}${rank2}` : r < c ? `${rank1}${rank2}s` : `${rank2}${rank1}o`;
+      const decision = getPushFoldDecision(hand, stack, position);
+      return { hand, decision, isPair: r === c };
+    });
   }, [stack, position]);
 
-  const getCellColor = (d: PushFoldDecision) => {
+  // ── Call grid ──────────────────────────────────────────────────────────────
+  const callGrid = useMemo(() => {
+    const villainPos = callVsPos.replace("vs", "") as Position;
+    return Array.from({ length: 169 }, (_, idx) => {
+      const r = Math.floor(idx / 13);
+      const c = idx % 13;
+      const rank1 = ALL_RANKS[r];
+      const rank2 = ALL_RANKS[c];
+      const hand = r === c ? `${rank1}${rank2}` : r < c ? `${rank1}${rank2}s` : `${rank2}${rank1}o`;
+      const decision = getCallDecision(hand, stack, villainPos);
+      return { hand, decision, isPair: r === c };
+    });
+  }, [stack, callVsPos]);
+
+  // ── Top call hands summary ─────────────────────────────────────────────────
+  const topCallHands = useMemo(() => {
+    return callGrid
+      .filter(c => c.decision.shouldCall)
+      .sort((a, b) => b.decision.maxBB - a.decision.maxBB || b.decision.frequency - a.decision.frequency)
+      .slice(0, 20);
+  }, [callGrid]);
+
+  const getPushCellColor = (d: PushFoldDecision) => {
     if (d.action === "push") {
-      if (d.frequency >= 0.85) return "bg-green-500/80 hover:bg-green-500 text-white border-green-400/30";
-      if (d.frequency >= 0.4) return "bg-yellow-500/70 hover:bg-yellow-500 text-white border-yellow-400/30";
-      return "bg-yellow-600/40 hover:bg-yellow-600/60 text-yellow-200 border-yellow-600/20";
+      if (d.frequency >= 0.85) return "bg-green-600/80 hover:bg-green-600 text-white border-green-500/30";
+      if (d.frequency >= 0.4)  return "bg-yellow-500/70 hover:bg-yellow-500 text-white border-yellow-400/30";
+      return "bg-yellow-700/40 hover:bg-yellow-700/60 text-yellow-200 border-yellow-700/20";
     }
     return "bg-muted/30 hover:bg-muted/60 text-muted-foreground border-border/30";
   };
 
-  // Stats
-  const pushCount = grid.filter(c => c.decision.action === "push").length;
-  const pushPct = Math.round((pushCount / 169) * 100);
+  const getCallCellColor = (d: CallDecision) => {
+    if (d.shouldCall) {
+      if (d.frequency >= 0.85) return "bg-blue-600/80 hover:bg-blue-600 text-white border-blue-500/30";
+      if (d.frequency >= 0.4)  return "bg-blue-400/50 hover:bg-blue-400/70 text-white border-blue-400/30";
+      return "bg-blue-300/30 hover:bg-blue-300/50 text-blue-200 border-blue-300/20";
+    }
+    return "bg-muted/30 hover:bg-muted/60 text-muted-foreground border-border/30";
+  };
+
+  const pushCount = pushGrid.filter(c => c.decision.action === "push").length;
+  const callCount = callGrid.filter(c => c.decision.shouldCall).length;
+
+  const CALL_VS_LABELS: Record<CallVsPosition, string> = {
+    vsUTG: "vs UTG", vsCO: "vs CO", vsBTN: "vs BTN", vsSB: "vs SB"
+  };
+
+  function HandGrid({
+    gridData,
+    getCellColorFn,
+    onSelect,
+    selectedHand,
+  }: {
+    gridData: Array<{ hand: string; isPair: boolean } & ({ decision: PushFoldDecision } | { decision: CallDecision })>;
+    getCellColorFn: (d: any) => string;
+    onSelect: (hand: string, decision: any) => void;
+    selectedHand?: string;
+  }) {
+    return (
+      <div className="grid gap-[2px]" style={{ gridTemplateColumns: `20px repeat(13, 1fr)` }}>
+        <div />
+        {ALL_RANKS.map(r => (
+          <div key={r} className="text-center text-[10px] text-muted-foreground font-mono pb-1">{r}</div>
+        ))}
+        {ALL_RANKS.map((rowRank, r) => (
+          <>
+            <div key={`lbl-${r}`} className="flex items-center justify-center text-[10px] text-muted-foreground font-mono">{rowRank}</div>
+            {ALL_RANKS.map((_, c) => {
+              const cell = gridData[r * 13 + c];
+              const isSel = selectedHand === cell.hand;
+              return (
+                <button
+                  key={`${r}-${c}`}
+                  onClick={() => onSelect(cell.hand, cell.decision)}
+                  className={cn(
+                    "aspect-square flex items-center justify-center text-[9px] font-mono font-bold rounded transition-all border",
+                    getCellColorFn(cell.decision),
+                    isSel && "ring-2 ring-primary ring-offset-1 ring-offset-card scale-110 z-10 relative"
+                  )}
+                  title={cell.hand}
+                >
+                  <span className="leading-none">
+                    {cell.isPair ? cell.hand.slice(0, 2) : cell.hand.slice(0, cell.hand.length - 1)}
+                  </span>
+                </button>
+              );
+            })}
+          </>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
       {/* Controls */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Stack slider */}
         <div className="rounded-xl bg-card border border-border p-4 space-y-3">
           <div className="flex items-center justify-between">
             <Label className="text-sm font-semibold">Profundidade de Stack</Label>
             <span className="font-mono font-bold text-primary text-lg">{stack}bb</span>
           </div>
-          <Slider
-            min={1} max={20} step={1}
-            value={[stack]}
-            onValueChange={([v]) => setStack(v)}
-          />
+          <Slider min={1} max={20} step={1} value={[stack]} onValueChange={([v]) => setStack(v)} />
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>1bb</span><span>10bb</span><span>20bb</span>
           </div>
         </div>
 
+        {/* Push position */}
         <div className="rounded-xl bg-card border border-border p-4 space-y-3">
-          <Label className="text-sm font-semibold">Posição</Label>
+          <Label className="text-sm font-semibold">Sua Posição (Push)</Label>
           <div className="grid grid-cols-4 gap-1.5">
             {POSITIONS.map(pos => (
               <button
@@ -559,81 +641,198 @@ function PushFoldChart() {
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            Push em <span className="text-primary font-semibold">{pushPct}%</span> das mãos ({pushCount}/169)
+            Push: <span className="text-primary font-semibold">{pushCount} mãos</span>
+            &nbsp;·&nbsp;
+            Call: <span className="text-blue-400 font-semibold">{callCount} mãos</span>
           </p>
         </div>
       </div>
 
-      {/* Grid */}
-      <div className="rounded-xl bg-card border border-border p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold">Gráfico Push/Fold — {stack}bb {position}</h3>
-          <div className="flex items-center gap-3 text-xs">
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-500/80 inline-block" /> Push</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-500/70 inline-block" /> Misto</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-muted/40 inline-block border border-border" /> Fold</span>
-          </div>
+      {/* Sub-tabs: Push vs Call */}
+      <div className="rounded-xl bg-card border border-border overflow-hidden">
+        {/* Tab switcher header */}
+        <div className="flex border-b border-border">
+          <button
+            onClick={() => setActiveTab("push")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors",
+              activeTab === "push"
+                ? "bg-green-600/10 text-green-400 border-b-2 border-green-500"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />
+            Push — {stack}bb {position}
+            <Badge variant="outline" className="text-xs ml-1">{pushCount} mãos</Badge>
+          </button>
+          <button
+            onClick={() => setActiveTab("call")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-colors",
+              activeTab === "call"
+                ? "bg-blue-600/10 text-blue-400 border-b-2 border-blue-500"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <PhoneCall className="h-3.5 w-3.5" />
+            Call — {CALL_VS_LABELS[callVsPos]}
+            <Badge variant="outline" className="text-xs ml-1">{callCount} mãos</Badge>
+          </button>
         </div>
 
-        {/* Column headers */}
-        <div className="grid gap-[2px]" style={{ gridTemplateColumns: `20px repeat(13, 1fr)` }}>
-          <div />
-          {ALL_RANKS.map(r => (
-            <div key={r} className="text-center text-[10px] text-muted-foreground font-mono pb-1">{r}</div>
-          ))}
+        <div className="p-4 space-y-4">
+          {/* Call: position selector */}
+          {activeTab === "call" && (
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-xs text-muted-foreground font-medium">Chamando vs:</span>
+              {CALL_VS_POSITIONS.map(p => (
+                <button
+                  key={p}
+                  onClick={() => setCallVsPos(p)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all",
+                    callVsPos === p
+                      ? "bg-blue-600/20 text-blue-400 border-blue-500/40"
+                      : "bg-muted/30 text-muted-foreground border-border hover:bg-muted/60"
+                  )}
+                >
+                  {CALL_VS_LABELS[p]}
+                </button>
+              ))}
+            </div>
+          )}
 
-          {/* Rows */}
-          {ALL_RANKS.map((rowRank, r) => (
-            <>
-              <div key={`label-${r}`} className="flex items-center justify-center text-[10px] text-muted-foreground font-mono">{rowRank}</div>
-              {ALL_RANKS.map((_, c) => {
-                const cell = grid[r * 13 + c];
-                const isSelected = selected?.hand === cell.hand;
-                return (
-                  <button
-                    key={`${r}-${c}`}
-                    onClick={() => setSelected(isSelected ? null : { hand: cell.hand, decision: cell.decision })}
-                    className={cn(
-                      "aspect-square flex items-center justify-center text-[9px] font-mono font-bold rounded transition-all border",
-                      getCellColor(cell.decision),
-                      isSelected && "ring-2 ring-primary ring-offset-1 ring-offset-card scale-110 z-10 relative"
-                    )}
-                    title={`${cell.hand}: ${cell.decision.action} (${Math.round(cell.decision.frequency * 100)}%)`}
-                  >
-                    <span className="leading-none">{cell.hand.slice(0, -1 * (cell.hand.length > 2 ? 1 : 0))}</span>
-                  </button>
-                );
-              })}
-            </>
-          ))}
+          {/* Legend */}
+          <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+            {activeTab === "push" ? (
+              <>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-green-600/80 inline-block" /> Push puro</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-yellow-500/70 inline-block" /> Misto</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-muted/40 inline-block border border-border" /> Fold</span>
+              </>
+            ) : (
+              <>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-600/80 inline-block" /> Call puro</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-400/50 inline-block" /> Call misto</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-muted/40 inline-block border border-border" /> Fold</span>
+              </>
+            )}
+          </div>
+
+          {/* Grid */}
+          {activeTab === "push" ? (
+            <HandGrid
+              gridData={pushGrid}
+              getCellColorFn={getPushCellColor}
+              onSelect={(hand, d) => setSelected(s => s?.hand === hand && s.mode === "push" ? null : { mode: "push", hand, decision: d })}
+              selectedHand={selected?.mode === "push" ? selected.hand : undefined}
+            />
+          ) : (
+            <HandGrid
+              gridData={callGrid}
+              getCellColorFn={getCallCellColor}
+              onSelect={(hand, d) => setSelected(s => s?.hand === hand && s.mode === "call" ? null : { mode: "call", hand, decision: d })}
+              selectedHand={selected?.mode === "call" ? selected.hand : undefined}
+            />
+          )}
         </div>
       </div>
 
       {/* Selected hand detail */}
       {selected && (
-        <div className="rounded-xl bg-card border border-primary/30 p-5 space-y-3 animate-in fade-in duration-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="font-mono font-bold text-2xl text-primary">{selected.hand}</span>
-              <Badge className={cn(
-                "text-sm px-3",
-                selected.decision.action === "push"
-                  ? selected.decision.frequency >= 0.85
+        <div className="rounded-xl bg-card border border-primary/30 p-5 space-y-2 animate-in fade-in duration-200">
+          {selected.mode === "push" ? (
+            <>
+              <div className="flex items-center gap-3">
+                <span className="font-mono font-bold text-2xl text-green-400">{selected.hand}</span>
+                <Badge className={cn(
+                  "text-sm px-3",
+                  selected.decision.frequency >= 0.85
                     ? "bg-green-500/20 text-green-400 border-green-500/30"
                     : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
-                  : "bg-muted text-muted-foreground"
-              )}>
-                {selected.decision.action.toUpperCase()} — {Math.round(selected.decision.frequency * 100)}%
-              </Badge>
-            </div>
-            <span className={cn(
-              "font-mono font-bold",
-              selected.decision.ev >= 0 ? "text-green-400" : "text-red-400"
-            )}>
-              EV: {selected.decision.ev >= 0 ? "+" : ""}{selected.decision.ev}bb
-            </span>
+                )}>
+                  PUSH — {Math.round(selected.decision.frequency * 100)}%
+                </Badge>
+                <span className={cn("font-mono font-bold ml-auto", selected.decision.ev >= 0 ? "text-green-400" : "text-destructive")}>
+                  EV: {selected.decision.ev >= 0 ? "+" : ""}{selected.decision.ev}bb
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">{selected.decision.reasoning}</p>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-3">
+                <span className="font-mono font-bold text-2xl text-blue-400">{selected.hand}</span>
+                <Badge className={cn(
+                  "text-sm px-3",
+                  selected.decision.shouldCall
+                    ? selected.decision.frequency >= 0.85
+                      ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                      : "bg-blue-400/20 text-blue-300 border-blue-400/30"
+                    : "bg-muted text-muted-foreground"
+                )}>
+                  {selected.decision.shouldCall ? "CALL" : "FOLD"} — {Math.round(selected.decision.frequency * 100)}%
+                </Badge>
+                {selected.decision.maxBB > 0 && (
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    Call puro até <span className="font-mono font-bold text-blue-400">{selected.decision.maxBB}bb</span>
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">{selected.decision.reasoning}</p>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Call summary table */}
+      {activeTab === "call" && topCallHands.length > 0 && (
+        <div className="rounded-xl bg-card border border-border overflow-hidden">
+          <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+            <PhoneCall className="h-4 w-4 text-blue-400" />
+            <h3 className="text-sm font-semibold">Mãos para Pagar — {CALL_VS_LABELS[callVsPos]} a {stack}bb</h3>
           </div>
-          <p className="text-sm text-muted-foreground">{selected.decision.reasoning}</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border text-muted-foreground">
+                  <th className="text-left px-4 py-2">Mão</th>
+                  <th className="text-right px-4 py-2">Máx BB para call</th>
+                  <th className="text-right px-4 py-2">Frequência</th>
+                  <th className="text-left px-4 py-2 hidden sm:table-cell">Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topCallHands.map(({ hand, decision }) => (
+                  <tr key={hand} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
+                    <td className="px-4 py-2 font-mono font-bold">{hand}</td>
+                    <td className="px-4 py-2 text-right">
+                      <span className="font-mono font-semibold text-blue-400">{decision.maxBB}bb</span>
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden hidden sm:block">
+                          <div
+                            className="h-full bg-blue-500 rounded-full"
+                            style={{ width: `${Math.round(decision.frequency * 100)}%` }}
+                          />
+                        </div>
+                        <span className={cn(
+                          "font-mono",
+                          decision.frequency >= 0.85 ? "text-blue-400" : "text-blue-300/80"
+                        )}>
+                          {Math.round(decision.frequency * 100)}%
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 hidden sm:table-cell text-muted-foreground">
+                      {decision.frequency >= 0.85 ? "Call puro" : "Call misto"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
