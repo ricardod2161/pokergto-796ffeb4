@@ -15,8 +15,9 @@ import {
   fourBetRanges,
   bbDefenseRanges,
 } from "@/data/gtoRanges";
+import { CALL_RANGES_BB } from "@/lib/solverEngine";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Target, Zap, Shield, Users, HelpCircle, BookOpen, Info, Sparkles, Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Target, Zap, Shield, Users, HelpCircle, BookOpen, Info, Sparkles, Menu, X, ChevronLeft, ChevronRight, DollarSign, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -72,6 +73,79 @@ interface HandData {
   frequency: number;
   ev?: number;
 }
+
+// GTO raise sizings per scenario, position and stack depth
+const RAISE_SIZINGS: Record<string, Record<string, Record<string, { size: string; note: string }>>> = {
+  open: {
+    "20bb":  { UTG: { size: "2bb", note: "Min-raise push/fold zone" }, UTG1: { size: "2bb", note: "Min-raise push/fold zone" }, MP: { size: "2bb", note: "Min-raise push/fold zone" }, HJ: { size: "2bb", note: "Min-raise push/fold zone" }, CO: { size: "2bb", note: "Min-raise push/fold zone" }, BTN: { size: "2bb", note: "Min-raise push/fold zone" }, SB: { size: "2.5bb", note: "Inclui SB" }, BB: { size: "—", note: "N/A" } },
+    "40bb":  { UTG: { size: "2.5bb", note: "Conservador early pos" }, UTG1: { size: "2.5bb", note: "Conservador early pos" }, MP: { size: "2.5bb", note: "Padrão mid pos" }, HJ: { size: "2.5bb", note: "Padrão mid pos" }, CO: { size: "2.5bb", note: "Padrão late pos" }, BTN: { size: "2.5bb", note: "Padrão BTN" }, SB: { size: "3bb", note: "Inclui SB" }, BB: { size: "—", note: "N/A" } },
+    "60bb":  { UTG: { size: "2.5bb", note: "Tight early pos" }, UTG1: { size: "2.5bb", note: "Tight early pos" }, MP: { size: "2.5bb", note: "Padrão mid pos" }, HJ: { size: "2.5bb", note: "Padrão mid pos" }, CO: { size: "2.5bb", note: "Padrão late pos" }, BTN: { size: "2.5bb", note: "Padrão BTN" }, SB: { size: "3bb", note: "Out-of-position premium" }, BB: { size: "—", note: "N/A" } },
+    "100bb": { UTG: { size: "2.5bb", note: "GTO standard" }, UTG1: { size: "2.5bb", note: "GTO standard" }, MP: { size: "2.5bb", note: "GTO standard" }, HJ: { size: "2.5bb", note: "GTO standard" }, CO: { size: "2.5bb", note: "GTO standard" }, BTN: { size: "2.5bb", note: "GTO standard BTN" }, SB: { size: "3bb", note: "OOP compensation" }, BB: { size: "—", note: "N/A" } },
+    "150bb+": { UTG: { size: "3bb", note: "Deep stack tighter" }, UTG1: { size: "3bb", note: "Deep stack tighter" }, MP: { size: "3bb", note: "Deep stack" }, HJ: { size: "3bb", note: "Deep stack" }, CO: { size: "3bb", note: "Deep stack" }, BTN: { size: "2.5bb", note: "BTN ip advantage" }, SB: { size: "4bb", note: "Deep OOP premium" }, BB: { size: "—", note: "N/A" } },
+  },
+  "3bet": {
+    "20bb":  { UTG: { size: "Jam", note: "All-in GTO" }, UTG1: { size: "Jam", note: "All-in GTO" }, MP: { size: "Jam", note: "All-in GTO" }, HJ: { size: "Jam", note: "All-in GTO" }, CO: { size: "Jam", note: "All-in GTO" }, BTN: { size: "Jam", note: "All-in GTO" }, SB: { size: "Jam", note: "All-in GTO" }, BB: { size: "Jam", note: "All-in GTO" } },
+    "40bb":  { UTG: { size: "9bb", note: "~3x open 2.5bb" }, UTG1: { size: "9bb", note: "~3x open" }, MP: { size: "9bb", note: "3x open" }, HJ: { size: "9bb", note: "3x open" }, CO: { size: "9bb", note: "3x open" }, BTN: { size: "9bb", note: "3x open" }, SB: { size: "11bb", note: "OOP+1" }, BB: { size: "9bb", note: "IP no dead money" } },
+    "60bb":  { UTG: { size: "9bb", note: "3x open" }, UTG1: { size: "9bb", note: "3x open" }, MP: { size: "9bb", note: "3x open" }, HJ: { size: "9bb", note: "3x open" }, CO: { size: "9bb", note: "3x open" }, BTN: { size: "9bb", note: "IP 3bet" }, SB: { size: "11bb", note: "OOP premium" }, BB: { size: "10bb", note: "BB 3bet" } },
+    "100bb": { UTG: { size: "9bb", note: "3x open vs 3bb" }, UTG1: { size: "9bb", note: "3x open" }, MP: { size: "9bb", note: "3x open" }, HJ: { size: "9bb", note: "3x open" }, CO: { size: "9bb", note: "3x open" }, BTN: { size: "9bb", note: "IP linear 3bet" }, SB: { size: "12bb", note: "OOP equity denial" }, BB: { size: "10bb", note: "BB 3bet" } },
+    "150bb+": { UTG: { size: "10bb", note: "Deep 3bet bigger" }, UTG1: { size: "10bb", note: "Deep 3bet" }, MP: { size: "10bb", note: "Deep 3bet" }, HJ: { size: "10bb", note: "Deep 3bet" }, CO: { size: "10bb", note: "Deep 3bet" }, BTN: { size: "10bb", note: "Deep IP 3bet" }, SB: { size: "14bb", note: "Deep OOP" }, BB: { size: "12bb", note: "Deep BB 3bet" } },
+  },
+  "4bet": {
+    "20bb":  { UTG: { size: "Jam", note: "All-in" }, UTG1: { size: "Jam", note: "All-in" }, MP: { size: "Jam", note: "All-in" }, HJ: { size: "Jam", note: "All-in" }, CO: { size: "Jam", note: "All-in" }, BTN: { size: "Jam", note: "All-in" }, SB: { size: "Jam", note: "All-in" }, BB: { size: "Jam", note: "All-in" } },
+    "40bb":  { UTG: { size: "Jam", note: "Stack <40bb all-in" }, UTG1: { size: "Jam", note: "All-in" }, MP: { size: "Jam", note: "All-in" }, HJ: { size: "Jam", note: "All-in" }, CO: { size: "Jam", note: "All-in" }, BTN: { size: "Jam", note: "All-in" }, SB: { size: "Jam", note: "All-in" }, BB: { size: "Jam", note: "All-in" } },
+    "60bb":  { UTG: { size: "22bb", note: "~2.4x 3bet 9bb" }, UTG1: { size: "22bb", note: "2.4x 3bet" }, MP: { size: "22bb", note: "2.4x 3bet" }, HJ: { size: "22bb", note: "2.4x 3bet" }, CO: { size: "22bb", note: "2.4x 3bet" }, BTN: { size: "22bb", note: "2.4x 3bet IP" }, SB: { size: "24bb", note: "OOP 4bet" }, BB: { size: "22bb", note: "BB 4bet" } },
+    "100bb": { UTG: { size: "22bb", note: "2.4x 3bet GTO" }, UTG1: { size: "22bb", note: "2.4x 3bet" }, MP: { size: "22bb", note: "2.4x 3bet" }, HJ: { size: "22bb", note: "2.4x 3bet" }, CO: { size: "22bb", note: "2.4x 3bet" }, BTN: { size: "22bb", note: "IP 4bet" }, SB: { size: "24bb", note: "OOP 4bet" }, BB: { size: "22bb", note: "BB 4bet" } },
+    "150bb+": { UTG: { size: "25bb", note: "Deep 4bet 2.5x" }, UTG1: { size: "25bb", note: "Deep 4bet" }, MP: { size: "25bb", note: "Deep 4bet" }, HJ: { size: "25bb", note: "Deep 4bet" }, CO: { size: "25bb", note: "Deep 4bet" }, BTN: { size: "25bb", note: "Deep IP 4bet" }, SB: { size: "28bb", note: "Deep OOP 4bet" }, BB: { size: "25bb", note: "Deep BB 4bet" } },
+  },
+  squeeze: {
+    "20bb":  { UTG: { size: "Jam", note: "All-in squeeze" }, UTG1: { size: "Jam", note: "All-in" }, MP: { size: "Jam", note: "All-in" }, HJ: { size: "Jam", note: "All-in" }, CO: { size: "Jam", note: "All-in" }, BTN: { size: "Jam", note: "All-in" }, SB: { size: "Jam", note: "All-in" }, BB: { size: "Jam", note: "All-in" } },
+    "100bb": { UTG: { size: "—", note: "N/A" }, UTG1: { size: "—", note: "N/A" }, MP: { size: "—", note: "N/A" }, HJ: { size: "—", note: "N/A" }, CO: { size: "14bb", note: "Squeeze vs 1 caller" }, BTN: { size: "14bb", note: "BTN squeeze" }, SB: { size: "16bb", note: "SB OOP squeeze" }, BB: { size: "14bb", note: "BB squeeze" } },
+    "150bb+": { UTG: { size: "—", note: "N/A" }, UTG1: { size: "—", note: "N/A" }, MP: { size: "—", note: "N/A" }, HJ: { size: "—", note: "N/A" }, CO: { size: "16bb", note: "Bigger deep squeeze" }, BTN: { size: "16bb", note: "Deep BTN squeeze" }, SB: { size: "18bb", note: "Deep SB OOP" }, BB: { size: "16bb", note: "Deep BB squeeze" } },
+  },
+  isoraise: {
+    "100bb": { UTG: { size: "—", note: "N/A" }, UTG1: { size: "—", note: "N/A" }, MP: { size: "4bb", note: "Iso vs 1 limper" }, HJ: { size: "4bb", note: "Iso standard" }, CO: { size: "4bb", note: "Iso standard" }, BTN: { size: "4bb", note: "BTN iso" }, SB: { size: "5bb", note: "SB OOP iso" }, BB: { size: "4bb", note: "BB iso" } },
+  },
+};
+
+// Which villain position maps to the CALL_RANGES_BB key
+const SCENARIO_TO_CALL_POS: Record<string, string | null> = {
+  open: null,      // no call table for open (you're the aggressor)
+  "3bet": "vsCO",  // defending vs 3bet from CO as default
+  "4bet": null,
+  squeeze: null,
+  isoraise: null,
+  vs3bet: null,    // you're calling a 3bet, covered by vs3bet range data
+  coldcall: "vsBTN",
+  bbdefense: "vsBTN",
+};
+
+function getCallTableKey(scenario: string, position: string): string | null {
+  if (scenario === "bbdefense" || scenario === "coldcall") {
+    // map position label to call table
+    const posMap: Record<string, string> = {
+      vsUTG: "vsUTG", vsMP: "vsUTG", vsCO: "vsCO", vsBTN: "vsBTN", vsSB: "vsSB",
+      // cold call scenarios — villain is the raiser
+      UTG: "vsUTG", UTG1: "vsUTG", MP: "vsUTG", HJ: "vsCO", CO: "vsCO", BTN: "vsBTN", SB: "vsSB",
+    };
+    return posMap[position] ?? "vsBTN";
+  }
+  return null;
+}
+
+const CALL_TABLE_HAND_ORDER = [
+  // Pairs
+  "AA","KK","QQ","JJ","TT","99","88","77","66","55","44","33","22",
+  // Suited
+  "AKs","AQs","AJs","ATs","A9s","A8s","A7s","A6s","A5s","A4s","A3s","A2s",
+  "KQs","KJs","KTs","K9s","K8s","K7s",
+  "QJs","QTs","Q9s",
+  "JTs","J9s",
+  "T9s","98s","87s",
+  // Offsuit
+  "AKo","AQo","AJo","ATo","A9o","A8o","A7o","A6o",
+  "KQo","KJo","KTo","K9o",
+  "QJo","JTo",
+];
 
 const bbDefensePositions = [
   { id: "vsUTG", label: "vs UTG" },
@@ -434,6 +508,141 @@ export default function Ranges() {
                   </EducationalTooltip>
                 </div>
               </div>
+
+              {/* ── RAISE SIZING PANEL ────────────────────────── */}
+              {(() => {
+                const stackKey = selectedStack === "150bb+" ? "150bb+" : selectedStack;
+                const sizingRow = RAISE_SIZINGS[selectedScenario]?.[stackKey] ?? RAISE_SIZINGS[selectedScenario]?.["100bb"];
+                const sizing = sizingRow?.[effectivePosition];
+                if (!sizing || sizing.size === "—") return null;
+                return (
+                  <div className="mx-4 mb-3 rounded-lg border border-[hsl(220,15%,13%)] bg-[hsl(220,18%,8%)] p-3">
+                    <div className="flex items-center gap-2 mb-3">
+                      <DollarSign className="w-3.5 h-3.5 text-[hsl(142,70%,50%)]" />
+                      <span className="text-xs font-semibold text-[hsl(220,15%,60%)] uppercase tracking-wider">Sizing do Raise</span>
+                      <span className="ml-auto text-[10px] text-[hsl(220,15%,40%)]">{currentPos?.label} • {selectedStack}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 flex items-center justify-center rounded-lg bg-[hsl(142,70%,35%)]/15 border border-[hsl(142,70%,35%)]/25 py-3">
+                        <div className="text-center">
+                          <div className="text-2xl font-mono font-bold text-[hsl(142,70%,55%)]">{sizing.size}</div>
+                          <div className="text-[9px] text-[hsl(142,70%,40%)] mt-0.5 uppercase tracking-wider">Open / Raise</div>
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-[10px] text-[hsl(220,15%,55%)] leading-relaxed">{sizing.note}</p>
+                        {selectedScenario === "open" && (
+                          <p className="text-[10px] text-[hsl(220,15%,40%)] mt-1.5 leading-relaxed">
+                            {effectivePosition === "BTN" || effectivePosition === "CO"
+                              ? "Sizing menor IP para manter range amplo e extrair valor."
+                              : effectivePosition === "SB"
+                              ? "Sizing maior OOP para compensar desvantagem posicional."
+                              : "Sizing padrão EP/MP para balancear range e proteção."}
+                          </p>
+                        )}
+                        {selectedScenario === "3bet" && (
+                          <p className="text-[10px] text-[hsl(220,15%,40%)] mt-1.5 leading-relaxed">
+                            OOP: use sizing maior (+2bb) para compensar desvantagem de posição.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {/* vs standard open sizing reference */}
+                    {selectedScenario === "open" && (
+                      <div className="mt-2.5 grid grid-cols-4 gap-1.5">
+                        {[
+                          { pos: "EP", size: "2.5bb", note: "UTG/MP" },
+                          { pos: "HJ/CO", size: "2.5bb", note: "Middle" },
+                          { pos: "BTN", size: "2.5bb", note: "In Pos" },
+                          { pos: "SB", size: "3bb", note: "OOP" },
+                        ].map(s => (
+                          <div key={s.pos} className={cn(
+                            "rounded p-1.5 text-center border",
+                            s.pos === (effectivePosition === "UTG" || effectivePosition === "UTG1" || effectivePosition === "MP" ? "EP"
+                              : effectivePosition === "HJ" || effectivePosition === "CO" ? "HJ/CO"
+                              : effectivePosition === "BTN" ? "BTN"
+                              : effectivePosition === "SB" ? "SB" : "")
+                              ? "border-[hsl(142,70%,35%)]/40 bg-[hsl(142,70%,35%)]/10"
+                              : "border-[hsl(220,15%,12%)] bg-[hsl(220,15%,9%)]"
+                          )}>
+                            <div className="text-[9px] font-mono font-semibold text-white">{s.size}</div>
+                            <div className="text-[8px] text-[hsl(220,15%,40%)]">{s.pos}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* ── CALL RANGE PANEL ────────────────────────── */}
+              {(() => {
+                const callKey = getCallTableKey(selectedScenario, effectivePosition);
+                if (!callKey) return null;
+                const callTable = CALL_RANGES_BB[callKey];
+                if (!callTable) return null;
+                const stackNum = parseInt(selectedStack);
+                const handsWithData = CALL_TABLE_HAND_ORDER
+                  .map(h => ({ hand: h, maxBB: callTable[h] ?? 0 }))
+                  .filter(h => h.maxBB > 0);
+                if (handsWithData.length === 0) return null;
+                const callableNow = handsWithData.filter(h => h.maxBB >= stackNum);
+                const posLabel = callKey.replace("vs", "vs ");
+                return (
+                  <div className="mx-4 mb-4 rounded-lg border border-[hsl(220,15%,13%)] bg-[hsl(220,18%,8%)] overflow-hidden">
+                    <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[hsl(220,15%,13%)]">
+                      <Phone className="w-3.5 h-3.5 text-[hsl(210,85%,55%)]" />
+                      <span className="text-xs font-semibold text-[hsl(220,15%,60%)] uppercase tracking-wider">Mãos para Pagar</span>
+                      <span className="ml-auto flex items-center gap-1.5 text-[10px] text-[hsl(220,15%,40%)]">
+                        <span className="px-1.5 py-0.5 rounded bg-[hsl(210,85%,45%)]/20 text-[hsl(210,85%,60%)] font-semibold">{callableNow.length} mãos</span>
+                        <span>@ {selectedStack}</span>
+                      </span>
+                    </div>
+                    {/* Subheader */}
+                    <div className="px-3 py-1.5 bg-[hsl(220,15%,7%)] border-b border-[hsl(220,15%,11%)] flex items-center justify-between">
+                      <span className="text-[9px] text-[hsl(220,15%,45%)]">Pagar open all-in <strong className="text-[hsl(220,15%,60%)]">{posLabel.toUpperCase()}</strong> • máx BB onde o call é lucrativo</span>
+                    </div>
+                    {/* Hand list */}
+                    <div className="p-2 max-h-56 overflow-y-auto space-y-0.5">
+                      {handsWithData.map(({ hand, maxBB }) => {
+                        const canCall = maxBB >= stackNum;
+                        const isMarginal = !canCall && maxBB >= stackNum - 2;
+                        return (
+                          <div key={hand} className={cn(
+                            "flex items-center gap-2 px-2 py-1 rounded text-[11px] transition-colors",
+                            canCall ? "bg-[hsl(142,70%,35%)]/10 border border-[hsl(142,70%,35%)]/15" : "opacity-40"
+                          )}>
+                            <span className={cn(
+                              "font-mono font-bold w-10",
+                              canCall ? "text-white" : "text-[hsl(220,15%,40%)]"
+                            )}>{hand}</span>
+                            <div className="flex-1 h-1 bg-[hsl(220,15%,12%)] rounded-full overflow-hidden">
+                              <div
+                                className={cn("h-full rounded-full transition-all", canCall ? "bg-[hsl(142,70%,45%)]" : "bg-[hsl(220,15%,22%)]")}
+                                style={{ width: `${Math.min((maxBB / 20) * 100, 100)}%` }}
+                              />
+                            </div>
+                            <span className={cn(
+                              "font-mono text-[10px] w-12 text-right font-semibold",
+                              canCall ? "text-[hsl(142,70%,50%)]" : "text-[hsl(220,15%,35%)]"
+                            )}>
+                              ≤{maxBB}bb
+                            </span>
+                            {canCall && (
+                              <span className="text-[hsl(142,70%,50%)] text-[9px] font-bold">✓</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* Footer */}
+                    <div className="px-3 py-2 border-t border-[hsl(220,15%,11%)] flex gap-3 text-[9px] text-[hsl(220,15%,40%)]">
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[hsl(142,70%,45%)] inline-block" /> Pagar com {selectedStack}</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[hsl(220,15%,22%)] inline-block" /> Fora do range</span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
