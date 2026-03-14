@@ -19,6 +19,7 @@ import {
   getCallDecision,
   VILLAIN_RANGES,
   ALL_RANKS,
+  CALL_RANGES_BB,
 } from "@/lib/solverEngine";
 import type { RangeEquityResult, ICMResult, PushFoldDecision, CallDecision } from "@/lib/solverEngine";
 import type { EngineCard } from "@/lib/equityEngine";
@@ -785,56 +786,134 @@ function PushFoldChart() {
         </div>
       )}
 
-      {/* Call summary table */}
-      {activeTab === "call" && topCallHands.length > 0 && (
-        <div className="rounded-xl bg-card border border-border overflow-hidden">
-          <div className="px-4 py-3 border-b border-border flex items-center gap-2">
-            <PhoneCall className="h-4 w-4 text-blue-400" />
-            <h3 className="text-sm font-semibold">Mãos para Pagar — {CALL_VS_LABELS[callVsPos]} a {stack}bb</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground">
-                  <th className="text-left px-4 py-2">Mão</th>
-                  <th className="text-right px-4 py-2">Máx BB para call</th>
-                  <th className="text-right px-4 py-2">Frequência</th>
-                  <th className="text-left px-4 py-2 hidden sm:table-cell">Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topCallHands.map(({ hand, decision }) => (
-                  <tr key={hand} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
-                    <td className="px-4 py-2 font-mono font-bold">{hand}</td>
-                    <td className="px-4 py-2 text-right">
-                      <span className="font-mono font-semibold text-blue-400">{decision.maxBB}bb</span>
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden hidden sm:block">
-                          <div
-                            className="h-full bg-blue-500 rounded-full"
-                            style={{ width: `${Math.round(decision.frequency * 100)}%` }}
-                          />
-                        </div>
-                        <span className={cn(
-                          "font-mono",
-                          decision.frequency >= 0.85 ? "text-blue-400" : "text-blue-300/80"
-                        )}>
-                          {Math.round(decision.frequency * 100)}%
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2 hidden sm:table-cell text-muted-foreground">
-                      {decision.frequency >= 0.85 ? "Call puro" : "Call misto"}
-                    </td>
+      {/* All-positions reference table */}
+      {activeTab === "call" && (() => {
+        const ALL_POSITIONS = ["vsUTG", "vsCO", "vsBTN", "vsSB"] as const;
+        const POS_LABELS: Record<string, string> = { vsUTG: "vs UTG", vsCO: "vs CO", vsBTN: "vs BTN", vsSB: "vs SB" };
+
+        // Build sorted union of all hands across all positions
+        const allHandsSet = new Set<string>();
+        ALL_POSITIONS.forEach(p => Object.keys(CALL_RANGES_BB[p] ?? {}).forEach(h => allHandsSet.add(h)));
+
+        const RANK_ORDER = ["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
+        const rankVal = (r: string) => RANK_ORDER.indexOf(r);
+
+        const pairHands: string[] = [];
+        const suitedHands: string[] = [];
+        const offsuitHands: string[] = [];
+
+        allHandsSet.forEach(h => {
+          if (h.length === 2) pairHands.push(h);
+          else if (h.endsWith("s")) suitedHands.push(h);
+          else offsuitHands.push(h);
+        });
+
+        const sortByStrength = (a: string, b: string) => {
+          const r1a = rankVal(a[0]), r1b = rankVal(b[0]);
+          if (r1a !== r1b) return r1a - r1b;
+          return rankVal(a[1]) - rankVal(b[1]);
+        };
+
+        pairHands.sort(sortByStrength);
+        suitedHands.sort(sortByStrength);
+        offsuitHands.sort(sortByStrength);
+
+        const sortedHands = [...pairHands, ...suitedHands, ...offsuitHands];
+
+        const getCellStatus = (hand: string, pos: string) => {
+          const maxBB = (CALL_RANGES_BB[pos] ?? {})[hand] ?? 0;
+          if (maxBB === 0) return null;
+          if (stack <= maxBB - 3) return "call";
+          if (stack <= maxBB) return "mixed";
+          return "fold";
+        };
+
+        return (
+          <div className="rounded-xl bg-card border border-border overflow-hidden">
+            <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+              <PhoneCall className="h-4 w-4 text-blue-400" />
+              <div>
+                <h3 className="text-sm font-semibold">Ranges de Call por Posição</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Máx. de BB para chamar um all-in · stack atual: <span className="font-mono font-bold text-primary">{stack}bb</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="px-4 py-2 border-b border-border flex items-center gap-4 text-xs text-muted-foreground bg-muted/20">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Call puro (stack ≤ maxBB−3)
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" /> Marginal (≤ maxBB)
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-muted-foreground/40 inline-block" /> Fold / não na range
+              </span>
+            </div>
+
+            <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
+              <table className="w-full text-xs min-w-[400px]">
+                <thead className="sticky top-0 z-10 bg-card">
+                  <tr className="border-b border-border text-muted-foreground">
+                    <th className="text-left px-3 py-2.5 font-semibold w-14">Mão</th>
+                    {ALL_POSITIONS.map(p => (
+                      <th key={p} className="text-center px-2 py-2.5 font-semibold">{POS_LABELS[p]}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {sortedHands.map((hand, i) => {
+                    const statuses = ALL_POSITIONS.map(p => ({ pos: p, maxBB: (CALL_RANGES_BB[p] ?? {})[hand] ?? 0, status: getCellStatus(hand, p) }));
+                    const anyCallable = statuses.some(s => s.status === "call" || s.status === "mixed");
+                    return (
+                      <tr
+                        key={hand}
+                        className={cn(
+                          "border-b border-border/40 transition-colors",
+                          i % 2 === 0 ? "bg-transparent" : "bg-muted/10",
+                          anyCallable && "hover:bg-primary/5"
+                        )}
+                      >
+                        <td className={cn(
+                          "px-3 py-2 font-mono font-bold",
+                          anyCallable ? "text-foreground" : "text-muted-foreground/50"
+                        )}>
+                          {hand}
+                        </td>
+                        {statuses.map(({ pos, maxBB, status }) => (
+                          <td key={pos} className="px-2 py-2 text-center">
+                            {maxBB === 0 ? (
+                              <span className="text-muted-foreground/30">—</span>
+                            ) : (
+                              <span className={cn(
+                                "inline-flex items-center justify-center gap-1 font-mono font-semibold rounded px-1.5 py-0.5",
+                                status === "call"   && "bg-green-500/15 text-green-400",
+                                status === "mixed"  && "bg-yellow-400/15 text-yellow-400",
+                                status === "fold"   && "text-muted-foreground/40"
+                              )}>
+                                {status !== "fold" && (
+                                  <span className={cn(
+                                    "w-1.5 h-1.5 rounded-full inline-block",
+                                    status === "call"  && "bg-green-500",
+                                    status === "mixed" && "bg-yellow-400",
+                                  )} />
+                                )}
+                                {maxBB}bb
+                              </span>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
