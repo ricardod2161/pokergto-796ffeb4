@@ -545,7 +545,7 @@ function calculatePushEV(hand: HandNotation, stackBB: number, position: string):
  * Maximum stack (in BB) at which hero should CALL a push from a given position.
  * Based on standard Nash calling charts — hero is always in the big blind unless noted.
  */
-const CALL_RANGES_BB: Record<string, Record<string, number>> = {
+export const CALL_RANGES_BB: Record<string, Record<string, number>> = {
   // Calling vs BTN push
   vsBTN: {
     AA:20, KK:20, QQ:20, JJ:18, TT:15, "99":13, "88":11, "77":9, "66":8, "55":7,
