@@ -508,6 +508,141 @@ export default function Ranges() {
                   </EducationalTooltip>
                 </div>
               </div>
+
+              {/* ── RAISE SIZING PANEL ────────────────────────── */}
+              {(() => {
+                const stackKey = selectedStack === "150bb+" ? "150bb+" : selectedStack;
+                const sizingRow = RAISE_SIZINGS[selectedScenario]?.[stackKey] ?? RAISE_SIZINGS[selectedScenario]?.["100bb"];
+                const sizing = sizingRow?.[effectivePosition];
+                if (!sizing || sizing.size === "—") return null;
+                return (
+                  <div className="mx-4 mb-3 rounded-lg border border-[hsl(220,15%,13%)] bg-[hsl(220,18%,8%)] p-3">
+                    <div className="flex items-center gap-2 mb-3">
+                      <DollarSign className="w-3.5 h-3.5 text-[hsl(142,70%,50%)]" />
+                      <span className="text-xs font-semibold text-[hsl(220,15%,60%)] uppercase tracking-wider">Sizing do Raise</span>
+                      <span className="ml-auto text-[10px] text-[hsl(220,15%,40%)]">{currentPos?.label} • {selectedStack}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 flex items-center justify-center rounded-lg bg-[hsl(142,70%,35%)]/15 border border-[hsl(142,70%,35%)]/25 py-3">
+                        <div className="text-center">
+                          <div className="text-2xl font-mono font-bold text-[hsl(142,70%,55%)]">{sizing.size}</div>
+                          <div className="text-[9px] text-[hsl(142,70%,40%)] mt-0.5 uppercase tracking-wider">Open / Raise</div>
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-[10px] text-[hsl(220,15%,55%)] leading-relaxed">{sizing.note}</p>
+                        {selectedScenario === "open" && (
+                          <p className="text-[10px] text-[hsl(220,15%,40%)] mt-1.5 leading-relaxed">
+                            {effectivePosition === "BTN" || effectivePosition === "CO"
+                              ? "Sizing menor IP para manter range amplo e extrair valor."
+                              : effectivePosition === "SB"
+                              ? "Sizing maior OOP para compensar desvantagem posicional."
+                              : "Sizing padrão EP/MP para balancear range e proteção."}
+                          </p>
+                        )}
+                        {selectedScenario === "3bet" && (
+                          <p className="text-[10px] text-[hsl(220,15%,40%)] mt-1.5 leading-relaxed">
+                            OOP: use sizing maior (+2bb) para compensar desvantagem de posição.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {/* vs standard open sizing reference */}
+                    {selectedScenario === "open" && (
+                      <div className="mt-2.5 grid grid-cols-4 gap-1.5">
+                        {[
+                          { pos: "EP", size: "2.5bb", note: "UTG/MP" },
+                          { pos: "HJ/CO", size: "2.5bb", note: "Middle" },
+                          { pos: "BTN", size: "2.5bb", note: "In Pos" },
+                          { pos: "SB", size: "3bb", note: "OOP" },
+                        ].map(s => (
+                          <div key={s.pos} className={cn(
+                            "rounded p-1.5 text-center border",
+                            s.pos === (effectivePosition === "UTG" || effectivePosition === "UTG1" || effectivePosition === "MP" ? "EP"
+                              : effectivePosition === "HJ" || effectivePosition === "CO" ? "HJ/CO"
+                              : effectivePosition === "BTN" ? "BTN"
+                              : effectivePosition === "SB" ? "SB" : "")
+                              ? "border-[hsl(142,70%,35%)]/40 bg-[hsl(142,70%,35%)]/10"
+                              : "border-[hsl(220,15%,12%)] bg-[hsl(220,15%,9%)]"
+                          )}>
+                            <div className="text-[9px] font-mono font-semibold text-white">{s.size}</div>
+                            <div className="text-[8px] text-[hsl(220,15%,40%)]">{s.pos}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* ── CALL RANGE PANEL ────────────────────────── */}
+              {(() => {
+                const callKey = getCallTableKey(selectedScenario, effectivePosition);
+                if (!callKey) return null;
+                const callTable = CALL_RANGES_BB[callKey];
+                if (!callTable) return null;
+                const stackNum = parseInt(selectedStack);
+                const handsWithData = CALL_TABLE_HAND_ORDER
+                  .map(h => ({ hand: h, maxBB: callTable[h] ?? 0 }))
+                  .filter(h => h.maxBB > 0);
+                if (handsWithData.length === 0) return null;
+                const callableNow = handsWithData.filter(h => h.maxBB >= stackNum);
+                const posLabel = callKey.replace("vs", "vs ");
+                return (
+                  <div className="mx-4 mb-4 rounded-lg border border-[hsl(220,15%,13%)] bg-[hsl(220,18%,8%)] overflow-hidden">
+                    <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[hsl(220,15%,13%)]">
+                      <Phone className="w-3.5 h-3.5 text-[hsl(210,85%,55%)]" />
+                      <span className="text-xs font-semibold text-[hsl(220,15%,60%)] uppercase tracking-wider">Mãos para Pagar</span>
+                      <span className="ml-auto flex items-center gap-1.5 text-[10px] text-[hsl(220,15%,40%)]">
+                        <span className="px-1.5 py-0.5 rounded bg-[hsl(210,85%,45%)]/20 text-[hsl(210,85%,60%)] font-semibold">{callableNow.length} mãos</span>
+                        <span>@ {selectedStack}</span>
+                      </span>
+                    </div>
+                    {/* Subheader */}
+                    <div className="px-3 py-1.5 bg-[hsl(220,15%,7%)] border-b border-[hsl(220,15%,11%)] flex items-center justify-between">
+                      <span className="text-[9px] text-[hsl(220,15%,45%)]">Pagar open all-in <strong className="text-[hsl(220,15%,60%)]">{posLabel.toUpperCase()}</strong> • máx BB onde o call é lucrativo</span>
+                    </div>
+                    {/* Hand list */}
+                    <div className="p-2 max-h-56 overflow-y-auto space-y-0.5">
+                      {handsWithData.map(({ hand, maxBB }) => {
+                        const canCall = maxBB >= stackNum;
+                        const isMarginal = !canCall && maxBB >= stackNum - 2;
+                        return (
+                          <div key={hand} className={cn(
+                            "flex items-center gap-2 px-2 py-1 rounded text-[11px] transition-colors",
+                            canCall ? "bg-[hsl(142,70%,35%)]/10 border border-[hsl(142,70%,35%)]/15" : "opacity-40"
+                          )}>
+                            <span className={cn(
+                              "font-mono font-bold w-10",
+                              canCall ? "text-white" : "text-[hsl(220,15%,40%)]"
+                            )}>{hand}</span>
+                            <div className="flex-1 h-1 bg-[hsl(220,15%,12%)] rounded-full overflow-hidden">
+                              <div
+                                className={cn("h-full rounded-full transition-all", canCall ? "bg-[hsl(142,70%,45%)]" : "bg-[hsl(220,15%,22%)]")}
+                                style={{ width: `${Math.min((maxBB / 20) * 100, 100)}%` }}
+                              />
+                            </div>
+                            <span className={cn(
+                              "font-mono text-[10px] w-12 text-right font-semibold",
+                              canCall ? "text-[hsl(142,70%,50%)]" : "text-[hsl(220,15%,35%)]"
+                            )}>
+                              ≤{maxBB}bb
+                            </span>
+                            {canCall && (
+                              <span className="text-[hsl(142,70%,50%)] text-[9px] font-bold">✓</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* Footer */}
+                    <div className="px-3 py-2 border-t border-[hsl(220,15%,11%)] flex gap-3 text-[9px] text-[hsl(220,15%,40%)]">
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[hsl(142,70%,45%)] inline-block" /> Pagar com {selectedStack}</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[hsl(220,15%,22%)] inline-block" /> Fora do range</span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
