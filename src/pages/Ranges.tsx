@@ -15,8 +15,9 @@ import {
   fourBetRanges,
   bbDefenseRanges,
 } from "@/data/gtoRanges";
+import { CALL_RANGES_BB } from "@/lib/solverEngine";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Target, Zap, Shield, Users, HelpCircle, BookOpen, Info, Sparkles, Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Target, Zap, Shield, Users, HelpCircle, BookOpen, Info, Sparkles, Menu, X, ChevronLeft, ChevronRight, DollarSign, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
