@@ -43,10 +43,6 @@ const navigation = [
   { name: "Planos", href: "/pricing", icon: CreditCard },
 ];
 
-const legalLinks = [
-  { name: "Termos de Uso", href: "/terms", icon: FileText },
-  { name: "Privacidade", href: "/privacy", icon: Shield },
-];
 
 interface SidebarProps {
   onNavigate?: () => void;
