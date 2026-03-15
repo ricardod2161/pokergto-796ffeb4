@@ -309,23 +309,6 @@ export function Sidebar({ onNavigate, isMobile = false, collapsed: controlledCol
           </div>
         )}
 
-        {/* Legal Links */}
-        <div className="border-t border-sidebar-border p-2">
-          {legalLinks.map((item) => (
-            <Link
-              key={item.name}
-              to={item.href}
-              onClick={handleNavClick}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:text-foreground",
-                !isMobile && collapsed && "justify-center px-2"
-              )}
-            >
-              <item.icon className="h-3.5 w-3.5" />
-              {(isMobile || !collapsed) && <span>{item.name}</span>}
-            </Link>
-          ))}
-        </div>
 
         {/* Logout */}
         <div className="border-t border-sidebar-border p-2">
